@@ -17,10 +17,11 @@ CLI Python que consolida verticalmente planilhas `.xlsx` de uma pasta, preservan
 | 1 | leitura, validação estrutural, exportação atômica | aprovado | `e0e5d36` |
 | 2 | qualidade de dados: nulos, duplicados, padronização, relatório | aprovado | `aed12bd` |
 | 3 | configuração TOML + log rotacionado (sem agendamento) | aprovado | `d15a02e` |
-| 4 | interface customtkinter (Resumo/Relatório/Log) | implementado, aguardando aprovação do PO | ver `git log` |
-| — | empacotamento (`.app`, atalho de duplo clique) | não iniciado | — |
+| 4 | interface customtkinter (Resumo/Relatório/Log) | aprovado | `343f06c` |
+| — | validação de chave só quando usada | aprovado | ver `git log` |
+| — | empacotamento (`.app`, atalho de duplo clique) | adiado pelo PO | — |
 
-Suíte: 179 testes pytest (153 anteriores + 22 do controller + 4 da janela).
+Suíte: 182 testes pytest (153 anteriores + 26 da UI + 3 do comportamento de chave).
 
 Dados de teste do usuário no repo: `data/input/filial_01.xlsx`, `filial_02.xlsx`, `filial_03.xlsx` (7 linhas, `filial_02` com ordem de colunas trocada). Saída: `data/output/consolidado.xlsx` + `data/output/consolidacao.log` (ambos ignorados pelo git).
 
@@ -74,6 +75,7 @@ Erro de consolidação/configuração: `erro: <mensagem>` em stderr, exit 1, sem
 - **Thread + `queue.Queue` + `after`**: o trabalho roda fora da thread do Tk e o resultado volta por polling; nunca se chama widget de outra thread.
 - **`customtkinter` como extra `[ui]`**: o pacote continua instalável e testável sem GUI.
 - **Exceção inesperada na thread vira `RunOutcome` de erro**: a janela não morre silenciosamente.
+- **Chave validada só quando é usada** (decisão do PO): sem `remover_duplicados`, coluna desconhecida na chave não interrompe a execução — vira `WARNING` no log, a chave é descartada (`options.key = ()`) e o relatório volta ao modo `linhas_identicas`. Com remoção ligada, continua sendo erro. Motivo: uma chave velha no `config.toml` matava um run que não deduplicava nada.
 
 ## Ambiente onde foi construído
 
@@ -95,11 +97,10 @@ python3 -m venv .venv
 
 ## Próximos passos (candidatos, sem aprovação)
 
-1. Empacotamento para duplo clique: script `.command` no repo (barato) ou `.app` com py2app (mais trabalho, precisa de ícone e assinatura).
-2. `consolidator.py:45` valida `chave` mesmo com `remover_duplicados = false`; decidir entre manter o fail-fast ou só validar quando a chave for usada.
-3. `write_atomic` gera saída com permissão 600 (herança do `mkstemp`); 644 seria mais previsível para arquivo compartilhado.
-4. Teste de carga com planilhas reais grandes (a suíte usa só dados sintéticos pequenos).
-5. `docs/verificacao/*.py` ainda têm caminhos absolutos do container antigo.
+1. `write_atomic` gera saída com permissão 600 (herança do `mkstemp`); 644 seria mais previsível para arquivo compartilhado. Decisão do PO pendente.
+2. Teste de carga com planilhas reais grandes (a suíte usa só dados sintéticos pequenos).
+3. `docs/verificacao/*.py` ainda têm caminhos absolutos do container antigo.
+4. Empacotamento (`.app`/duplo clique) está adiado por decisão do PO.
 
 ## Armadilhas conhecidas
 
@@ -107,7 +108,7 @@ python3 -m venv .venv
 - `data_only=True`: célula com fórmula sem valor em cache é lida como vazia.
 - `--normalizar-numeros` converte `"007"` em `7` (perde zero à esquerda) — não usar em colunas de código.
 - Notações não suportadas (viram falha, valor intocado): `R$`, `(10)`, `1e5`, `1.23.456`, `05/11/26`.
-- `--chave` é literal e diferencia maiúsculas: `nome` não casa com coluna `Nome`. A chave é validada mesmo sem remoção de duplicados.
+- `--chave` é literal e diferencia maiúsculas: `nome` não casa com coluna `Nome`. Coluna desconhecida só é erro com remoção ativa; sem ela a chave é ignorada com `WARNING` no log.
 - Linha final totalmente vazia é descartada pelo reader (regra do Sprint 1); linha vazia no meio é preservada.
 - `write_atomic(frame, output)` sem relatório gera uma aba; com relatório, duas (`consolidado`, `relatorio`).
 - Rotação de log mantém apenas `consolidacao.log.1`.

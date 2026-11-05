@@ -69,6 +69,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                     config.input_dir.resolve(), config.output_path.resolve(), flags,
                     ",".join(options.key) or "-")
         result = run_config(config)
+        for warning in result.warnings:
+            logger.warning("%s", warning)
         lines_read = result.report.loc[result.report["metrica"] == "linhas_lidas", "valor"].sum()
         logger.info("leitura arquivos=%s linhas_lidas=%s", len(result.files), lines_read)
         summary = summarize(result.report)

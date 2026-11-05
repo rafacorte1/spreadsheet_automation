@@ -64,7 +64,7 @@ Qualidade de dados (todas as flags são opcionais e desligadas por padrão):
 - `--trim-texto`: remove espaços das extremidades de textos.
 - `--normalizar-numeros`: converte textos numéricos brasileiros, por exemplo `" 1.234,56 "` em `1234.56`.
 - `--datas-iso`: converte datas reconhecidas em valor de data ou de data e hora (formatos `DD/MM/AAAA`, `AAAA-MM-DD`, com hora opcional `HH:MM:SS`).
-- `--chave COL1,COL2`: compara duplicados pelas colunas informadas; espaços e entradas vazias são removidos. Uma chave vazia ou com coluna desconhecida é rejeitada.
+- `--chave COL1,COL2`: compara duplicados pelas colunas informadas; espaços e entradas vazias são removidos. Uma chave vazia é sempre rejeitada. Coluna desconhecida é erro quando a chave vai ser usada para remover (`--remover-duplicados`); sem remoção, a chave é ignorada com `WARNING` no log e o relatório conta duplicados no modo `linhas_identicas`.
 - `--remover-duplicados`: remove ocorrências posteriores à primeira, na ordem de arquivo e linha. Sem chave, compara todas as colunas de dados, excluindo `arquivo_origem`.
 
 ```bash
@@ -103,7 +103,7 @@ remover_duplicados = false
 chave = ["produto"]
 ```
 
-A chave precisa existir nas planilhas mesmo com `remover_duplicados = false`: a validação roda antes da remoção e rejeita colunas desconhecidas. Ajuste-a às colunas reais das entradas.
+A chave só precisa existir quando é usada para remover. Com `remover_duplicados = false`, uma coluna inexistente na chave não interrompe a execução: o log registra `WARNING ... ignorada` e o relatório conta duplicados no modo `linhas_identicas`. Com a remoção ligada, a mesma chave é rejeitada.
 
 A precedência é CLI explícita > arquivo > defaults. Caminhos definidos no TOML são relativos ao diretório do arquivo; caminhos da CLI e defaults são relativos ao diretório atual. Sem arquivo, as flags ficam desligadas e a chave vazia. Ajuste a chave do exemplo às colunas das entradas.
 

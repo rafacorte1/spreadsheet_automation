@@ -57,8 +57,8 @@ def test_quality_flags_and_final_rows(tmp_path, make_xlsx, capsys):
         workbook.close()
 
 
-@pytest.mark.parametrize("key", ["missing", "", ",", "arquivo_origem"])
-def test_invalid_key_preserves_output(tmp_path, make_xlsx, capsys, key):
+@pytest.mark.parametrize("key", ["", ","])
+def test_empty_key_preserves_output(tmp_path, make_xlsx, capsys, key):
     folder = tmp_path / "input"
     make_xlsx(folder / "a.xlsx", [["A"], [1]])
     output = tmp_path / "out.xlsx"
@@ -70,6 +70,19 @@ def test_invalid_key_preserves_output(tmp_path, make_xlsx, capsys, key):
     assert "chave" in captured.err
     assert "Traceback" not in captured.err
     assert output.read_bytes() == b"previous"
+
+
+@pytest.mark.parametrize("key", ["missing", "arquivo_origem"])
+def test_unknown_key_without_removal_is_warned(tmp_path, make_xlsx, capsys, key):
+    folder = tmp_path / "input"
+    make_xlsx(folder / "a.xlsx", [["A"], [1]])
+    output = tmp_path / "out.xlsx"
+    assert main(["--input", str(folder), "--output", str(output), "--chave", key]) == 0
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    assert "linhas: 1" in captured.out
+    log = (tmp_path / "data/output/consolidacao.log").read_text()
+    assert "WARNING chave" in log and "ignorada" in log and "linhas_identicas" in log
 
 
 def test_key_spaces_and_empty_entries(tmp_path, make_xlsx, capsys):
@@ -122,3 +135,28 @@ def test_default_config_and_error_log(tmp_path, make_xlsx, monkeypatch, capsys):
     assert captured.out == ''
     assert 'ERROR erro=' in log.read_text()
     assert 'missing' in captured.err
+
+
+def test_unknown_key_without_removal_warns_in_log(tmp_path, make_xlsx, capsys):
+    make_xlsx(tmp_path / 'input/a.xlsx', [['produto'], ['Mouse']])
+    assert main(['--input', str(tmp_path / 'input'), '--output', str(tmp_path / 'out.xlsx'),
+                 '--chave', 'data']) == 0
+    captured = capsys.readouterr()
+    assert captured.err == ''
+    assert captured.out.splitlines() == [
+        'arquivos: 1', 'linhas: 1', f'saida: {(tmp_path / "out.xlsx").resolve()}',
+        'qualidade: nulos=0 duplicados=0 removidos=0 alterados=0',
+    ]
+    log = (tmp_path / 'data/output/consolidacao.log').read_text()
+    assert 'WARNING chave (\'data\',) ignorada' in log
+    assert 'linhas_identicas' in log
+
+
+def test_unknown_key_with_removal_fails(tmp_path, make_xlsx, capsys):
+    make_xlsx(tmp_path / 'input/a.xlsx', [['produto'], ['Mouse']])
+    assert main(['--input', str(tmp_path / 'input'), '--output', str(tmp_path / 'out.xlsx'),
+                 '--chave', 'data', '--remover-duplicados']) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ''
+    assert 'colunas desconhecidas' in captured.err
+    assert not (tmp_path / 'out.xlsx').exists()

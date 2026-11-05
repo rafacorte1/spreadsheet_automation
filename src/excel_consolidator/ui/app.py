@@ -232,7 +232,10 @@ class App(ctk.CTk):
         self.progress.stop()
         self.progress.set(0)
         self.status.configure(text="concluído" if outcome.ok else "falhou")
-        self._set_text(self.resumo_box, outcome.message)
+        message = outcome.message
+        if outcome.warnings:
+            message = message + "\n" + "\n".join(f"aviso: {warning}" for warning in outcome.warnings)
+        self._set_text(self.resumo_box, message)
         self._fill_report(outcome.report)
         self._set_text(self.log_box, "\n".join(outcome.log_tail))
         self.tabs.set("Resumo")

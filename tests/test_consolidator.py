@@ -48,8 +48,13 @@ def test_key_validation_and_first_occurrence(tmp_path, make_xlsx):
     from excel_consolidator.quality import QualityOptions
     make_xlsx(tmp_path / "a.xlsx", [["id", "valor"], [1, "primeiro"], [2, None]])
     make_xlsx(tmp_path / "z.xlsx", [["valor", "id"], ["segundo", 1]])
+    ignored = consolidate(tmp_path, QualityOptions(key=("desconhecida",)))
+    assert ignored.rows == 3
+    assert ignored.options.key == ()
+    assert len(ignored.warnings) == 1 and "ignorada" in ignored.warnings[0]
+    assert ignored.report[ignored.report.metrica == "modo"].valor.tolist() == ["linhas_identicas"]
     with pytest.raises(ConsolidationError, match="desconhecida.*a.xlsx"):
-        consolidate(tmp_path, QualityOptions(key=("desconhecida",)))
+        consolidate(tmp_path, QualityOptions(key=("desconhecida",), remove_duplicates=True))
     raw = consolidate(tmp_path)
     assert raw.rows == 3
     result = consolidate(tmp_path, QualityOptions(key=("id",), remove_duplicates=True))

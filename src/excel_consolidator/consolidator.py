@@ -1,7 +1,7 @@
 """Consolidação vertical dos valores brutos das entradas."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import pandas as pd
@@ -22,6 +22,7 @@ class ConsolidationResult:
     frame: pd.DataFrame
     report: pd.DataFrame
     options: QualityOptions
+    warnings: tuple[str, ...] = ()
 
     @property
     def rows(self) -> int:
@@ -43,8 +44,17 @@ def consolidate(input_dir: Path, options: QualityOptions | None = None) -> Conso
         stats = {result.sheet.path.name: result.stats for result in results}
     reference = files[0]
     unknown = [column for column in options.key if column not in reference.columns]
-    if unknown:
+    warnings: list[str] = []
+    if unknown and options.remove_duplicates:
         raise ConsolidationError(f"chave {options.key}: colunas desconhecidas {unknown} em {reference.path}")
+    if unknown:
+        # A chave só é usada para remover: sem remoção, ela é ignorada e o relatório
+        # volta a comparar linhas idênticas, com aviso explícito em vez de erro.
+        warnings.append(
+            f"chave {options.key} ignorada: colunas desconhecidas {unknown} em {reference.path}; "
+            "duplicados contados no modo linhas_identicas"
+        )
+        options = replace(options, key=())
     frames: list[pd.DataFrame] = []
     for sheet in files:
         if sheet is not reference:
@@ -59,4 +69,4 @@ def consolidate(input_dir: Path, options: QualityOptions | None = None) -> Conso
     report = build_report(files, stats, duplicates, options)
     if options.remove_duplicates:
         frame = frame.loc[~find_duplicates(frame, options.key or reference.columns)].reset_index(drop=True)
-    return ConsolidationResult(files, frame, report, options)
+    return ConsolidationResult(files, frame, report, options, tuple(warnings))

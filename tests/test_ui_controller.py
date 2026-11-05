@@ -102,9 +102,21 @@ def test_build_config_clears_inherited_key():
     assert config.options.key == ()
 
 
-def test_unknown_key_column_returns_error(tmp_path, make_xlsx):
+def test_unknown_key_without_removal_is_ignored_with_warning(tmp_path, make_xlsx):
     make_xlsx(tmp_path / "input" / "a.xlsx", [["produto", "valor"], ["Mouse", 50]])
     outcome = run_from_fields(fields_for(tmp_path, key="produto, data"))
+    assert outcome.ok
+    assert outcome.message.startswith("arquivos: 1")
+    assert len(outcome.warnings) == 1 and "ignorada" in outcome.warnings[0]
+    assert any("ignorada" in line for line in outcome.log_tail)
+    report = outcome.report
+    assert report.loc[report["metrica"] == "modo", "valor"].tolist() == ["linhas_identicas"]
+    assert (tmp_path / "out" / "consolidado.xlsx").is_file()
+
+
+def test_unknown_key_with_removal_returns_error(tmp_path, make_xlsx):
+    make_xlsx(tmp_path / "input" / "a.xlsx", [["produto", "valor"], ["Mouse", 50]])
+    outcome = run_from_fields(fields_for(tmp_path, key="produto, data", remove_duplicates=True))
     assert not outcome.ok
     assert "colunas desconhecidas" in outcome.message
     assert not (tmp_path / "out" / "consolidado.xlsx").exists()

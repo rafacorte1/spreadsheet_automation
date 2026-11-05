@@ -68,6 +68,7 @@ class RunOutcome:
     summary: QualitySummary | None = None
     report: pd.DataFrame | None = None
     log_tail: tuple[str, ...] = ()
+    warnings: tuple[str, ...] = ()
 
 
 def build_config(fields: FormFields, base: RuntimeConfig | None = None) -> RuntimeConfig:
@@ -151,6 +152,8 @@ def run_from_fields(
         logger.info("inicio input=%s output=%s flags=%s chave=%s", config.input_dir.resolve(),
                     config.output_path.resolve(), flags, ",".join(options.key) or "-")
         result = run_config(config)
+        for warning in result.warnings:
+            logger.warning("%s", warning)
         lines_read = result.report.loc[result.report["metrica"] == "linhas_lidas", "valor"].sum()
         logger.info("leitura arquivos=%s linhas_lidas=%s", len(result.files), lines_read)
         summary = summarize(result.report)
@@ -166,6 +169,7 @@ def run_from_fields(
             summary=summary,
             report=result.report,
             log_tail=read_log_tail(config.log_file, log_tail_lines),
+            warnings=result.warnings,
         )
     except ConsolidationError as exc:
         if logger is not None:
