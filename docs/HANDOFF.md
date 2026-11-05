@@ -75,6 +75,7 @@ Erro de consolidação/configuração: `erro: <mensagem>` em stderr, exit 1, sem
 - **Thread + `queue.Queue` + `after`**: o trabalho roda fora da thread do Tk e o resultado volta por polling; nunca se chama widget de outra thread.
 - **`customtkinter` como extra `[ui]`**: o pacote continua instalável e testável sem GUI.
 - **Exceção inesperada na thread vira `RunOutcome` de erro**: a janela não morre silenciosamente.
+- **Saída em 600 é intencional** (decisão do PO): `mkstemp` cria o temporário em 0600 e o `os.replace` preserva isso. O relatório pode conter dado sensível e a máquina é de um usuário só; 644 só entraria se outra conta local precisasse ler o arquivo.
 - **Chave validada só quando é usada** (decisão do PO): sem `remover_duplicados`, coluna desconhecida na chave não interrompe a execução — vira `WARNING` no log, a chave é descartada (`options.key = ()`) e o relatório volta ao modo `linhas_identicas`. Com remoção ligada, continua sendo erro. Motivo: uma chave velha no `config.toml` matava um run que não deduplicava nada.
 
 ## Ambiente onde foi construído
@@ -97,10 +98,10 @@ python3 -m venv .venv
 
 ## Próximos passos (candidatos, sem aprovação)
 
-1. `write_atomic` gera saída com permissão 600 (herança do `mkstemp`); 644 seria mais previsível para arquivo compartilhado. Decisão do PO pendente.
-2. Teste de carga com planilhas reais grandes (a suíte usa só dados sintéticos pequenos).
-3. `docs/verificacao/*.py` ainda têm caminhos absolutos do container antigo.
-4. Empacotamento (`.app`/duplo clique) está adiado por decisão do PO.
+1. Teste de carga com planilhas reais grandes (a suíte usa só dados sintéticos pequenos).
+2. `docs/verificacao/*.py` ainda têm caminhos absolutos do container antigo.
+3. Empacotamento (`.app`/duplo clique) está adiado por decisão do PO.
+4. Permissão da saída: 600 mantido por decisão do PO; reabrir só se outra conta local precisar ler o relatório.
 
 ## Armadilhas conhecidas
 
