@@ -4,3 +4,6 @@ __pycache__/
 .pytest_cache/
 data/output/*.xlsx
 src/*.egg-info/
+config.toml
+data/output/*.log
+data/output/*.log.1

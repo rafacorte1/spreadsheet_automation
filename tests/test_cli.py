@@ -32,8 +32,8 @@ def test_input_error_preserves_output(tmp_path, capsys, existing):
 
 def test_defaults():
     args = build_parser().parse_args([])
-    assert args.input == DEFAULT_INPUT
-    assert args.output == DEFAULT_OUTPUT
+    assert args.input is None
+    assert args.output is None
 
 
 def test_argument_error(capsys):
@@ -78,3 +78,47 @@ def test_key_spaces_and_empty_entries(tmp_path, make_xlsx, capsys):
     assert main(["--input", str(folder), "--output", str(tmp_path / "out.xlsx"),
                  "--chave", " , A, ,", "--remover-duplicados"]) == 0
     assert "linhas: 1\n" in capsys.readouterr().out
+
+
+def test_config_flags_and_overrides(tmp_path, make_xlsx, capsys):
+    from openpyxl import load_workbook
+    make_xlsx(tmp_path / 'input' / 'a.xlsx', [['A'], [' x '], ['x']])
+    make_xlsx(tmp_path / 'other' / 'b.xlsx', [['A'], [' y ']])
+    config = tmp_path / 'config.toml'
+    config.write_text('input="input"\noutput="out.xlsx"\nlog_file="configured.log"\n[qualidade]\ntrim_texto=true\nnormalizar_numeros=true\ndatas_iso=true\nremover_duplicados=true\nchave=["A"]\n')
+    assert main(['--config', str(config)]) == 0
+    assert capsys.readouterr().out == f'arquivos: 1\nlinhas: 1\nsaida: {tmp_path / "out.xlsx"}\nqualidade: nulos=0 duplicados=1 removidos=1 alterados=1\n'
+    explicit = tmp_path / 'explicit.log'
+    assert main(['--config', str(config), '--input', str(tmp_path / 'other'), '--log-file', str(explicit)]) == 0
+    assert 'flags=trim_texto,normalizar_numeros,datas_iso,remover_duplicados chave=A' in explicit.read_text()
+    book = load_workbook(tmp_path / 'out.xlsx')
+    try:
+        assert book['consolidado']['A2'].value == 'y'
+    finally:
+        book.close()
+
+
+@pytest.mark.parametrize('contents, message', [(None, 'missing.toml'), ('unknown=true', 'unknown')])
+def test_config_error(tmp_path, capsys, contents, message):
+    config = tmp_path / 'missing.toml'
+    if contents is not None:
+        config.write_text(contents)
+    assert main(['--config', str(config), '--output', str(tmp_path / 'out.xlsx')]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ''
+    assert message in captured.err
+    assert not (tmp_path / 'out.xlsx').exists()
+
+
+def test_default_config_and_error_log(tmp_path, make_xlsx, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    make_xlsx(tmp_path / 'data/input/a.xlsx', [['A'], [1]])
+    assert main([]) == 0
+    assert len(capsys.readouterr().out.splitlines()) == 4
+    log = tmp_path / 'data/output/consolidacao.log'
+    assert len(log.read_text().splitlines()) == 3
+    assert main(['--input', 'missing']) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ''
+    assert 'ERROR erro=' in log.read_text()
+    assert 'missing' in captured.err

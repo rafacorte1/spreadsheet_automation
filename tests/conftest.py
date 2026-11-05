@@ -8,6 +8,12 @@ from openpyxl import Workbook
 import pytest
 
 
+@pytest.fixture(autouse=True, scope="function")
+def isolate_working_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Mantém arquivos gerados por caminhos relativos no temporário de cada teste."""
+    monkeypatch.chdir(tmp_path)
+
+
 @pytest.fixture
 def make_xlsx() -> Callable[[Path, list[list[object]]], Path]:
     def create(path: Path, rows: list[list[object]]) -> Path:

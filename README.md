@@ -81,3 +81,43 @@ A aba `relatorio` tem exatamente as colunas `secao, arquivo, coluna, metrica, va
 - `duplicados`: `modo` (`linhas_identicas` ou `chave:a,b`), `linhas_duplicadas` e `linhas_removidas`. Campos de arquivo e coluna ficam vazios.
 
 `linhas` no stdout conta as linhas da saída final, após eventual remoção; `linhas_lidas` conta a entrada. A linha `qualidade:` soma nulos, duplicados posteriores à primeira, removidos e alterações por regra. A detecção de duplicados e o relatório funcionam mesmo sem flags; por isso dados com nulos ou duplicados podem apresentar contadores diferentes de zero sem solicitar mudanças.
+
+## Configuração
+
+A CLI procura `config.toml` no diretório atual; use `--config PATH` para indicar outro arquivo (obrigatório quando explícito). Exemplo de `config.example.toml`:
+
+```toml
+# Caminhos relativos ao diretório deste arquivo.
+input = "data/input"
+output = "data/output/consolidado.xlsx"
+log_file = "data/output/consolidacao.log"
+
+[qualidade]
+# Padronizações opcionais.
+trim_texto = false
+normalizar_numeros = false
+datas_iso = false
+# Remoção opcional e colunas usadas como chave.
+remover_duplicados = false
+chave = ["produto", "data"]
+```
+
+A precedência é CLI explícita > arquivo > defaults. Caminhos definidos no TOML são relativos ao diretório do arquivo; caminhos da CLI e defaults são relativos ao diretório atual. Sem arquivo, as flags ficam desligadas e a chave vazia. Ajuste a chave do exemplo às colunas das entradas.
+
+```bash
+python -m excel_consolidator --config config.toml --log-file data/output/execucao.log
+```
+
+## Log
+
+O caminho default é `data/output/consolidacao.log`. O log UTF-8 acrescenta registros a cada execução e rotaciona em aproximadamente 1 MB, mantendo um backup `.log.1`. `--log-file PATH` substitui o caminho configurado. O formato é `AAAA-MM-DD HH:MM:SS NIVEL mensagem`, sem handler de console. Cada sucesso registra `inicio` (caminhos resolvidos, flags ativas e chave), `leitura` (arquivos e linhas antes de remover duplicados) e `gravado` (linhas finais, contadores e saída absoluta). Erros após abrir o log usam `ERROR erro=<mensagem>`; falhas de configuração ou abertura são informadas em stderr, pois o log ainda não está disponível.
+
+Exemplo real com entrada sintética:
+
+```text
+2026-11-05 10:29:59 INFO inicio input=/home/hermes/.hermes/cache/scratch/etapa-f-demo-2xuqum_e/input output=/home/hermes/.hermes/cache/scratch/etapa-f-demo-2xuqum_e/out.xlsx flags=trim_texto chave=-
+2026-11-05 10:29:59 INFO leitura arquivos=1 linhas_lidas=1
+2026-11-05 10:29:59 INFO gravado linhas=1 nulos=0 duplicados=0 removidos=0 alterados=1 saida=/home/hermes/.hermes/cache/scratch/etapa-f-demo-2xuqum_e/out.xlsx
+```
+
+Não há agendamento: a automação é disparada por comando. O núcleo `run_config`, em `excel_consolidator.cli`, recebe um `RuntimeConfig` e permanece importável e silencioso para uma interface gráfica futura. Ele não configura logs; essa responsabilidade pertence à CLI.

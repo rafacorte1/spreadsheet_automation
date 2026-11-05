@@ -38,7 +38,7 @@ def test_module_defaults_and_previous_result_survives_corruption(tmp_path, make_
     assert "c.xlsx" in failed.stderr
     assert "Traceback" not in failed.stderr
     assert output.read_bytes() == previous_output
-    assert list(output.parent.iterdir()) == [output]
+    assert set(output.parent.iterdir()) == {output, output.parent / "consolidacao.log"}
     assert corrupt.read_bytes() == b"corrupted input"
     assert all(path.read_bytes() == content for path, content in before.items())
 
@@ -75,3 +75,29 @@ def test_quality_workbook_and_second_run_without_flags(tmp_path, make_xlsx):
     finally:
         workbook.close()
     assert all(path.read_bytes() == content for path, content in before.items())
+
+
+def test_config_and_log_subprocess(tmp_path, make_xlsx):
+    source = make_xlsx(tmp_path / 'input/a.xlsx', [['nome'], [' Ana ']])
+    before = source.read_bytes()
+    config = tmp_path / 'settings.toml'
+    config.write_text('input="input"\noutput="out.xlsx"\nlog_file="unused.log"\n[qualidade]\ntrim_texto=true\n')
+    log = tmp_path / 'logs/run.log'
+    completed = subprocess.run([sys.executable, '-m', 'excel_consolidator', '--config', str(config), '--log-file', str(log)], cwd=tmp_path, capture_output=True, text=True)
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stderr == ''
+    assert completed.stdout == f'arquivos: 1\nlinhas: 1\nsaida: {tmp_path / "out.xlsx"}\nqualidade: nulos=0 duplicados=0 removidos=0 alterados=1\n'
+    workbook = load_workbook(tmp_path / 'out.xlsx')
+    try:
+        assert workbook.sheetnames == ['consolidado', 'relatorio']
+        assert list(workbook['consolidado'].values) == [('nome', 'arquivo_origem'), ('Ana', 'a.xlsx')]
+        assert workbook['relatorio']['A1'].value == 'secao'
+    finally:
+        workbook.close()
+    lines = log.read_text().splitlines()
+    assert len(lines) == 3
+    assert 'inicio input=' in lines[0]
+    assert 'leitura arquivos=1 linhas_lidas=1' in lines[1]
+    assert 'gravado linhas=1' in lines[2]
+    assert source.read_bytes() == before
+    assert not (tmp_path / 'unused.log').exists()
