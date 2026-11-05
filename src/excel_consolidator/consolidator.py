@@ -1,4 +1,4 @@
-"""Consolidação vertical dos valores brutos das entradas."""
+"""Vertical consolidation of the raw input values."""
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
@@ -16,7 +16,7 @@ from .reader import (
 
 @dataclass(frozen=True)
 class ConsolidationResult:
-    """Entradas validadas e seu conteúdo consolidado."""
+    """Validated inputs and their consolidated content."""
 
     files: tuple[SheetData, ...]
     frame: pd.DataFrame
@@ -26,16 +26,16 @@ class ConsolidationResult:
 
     @property
     def rows(self) -> int:
-        """Retorne o total de linhas consolidadas."""
+        """Return the total number of consolidated rows."""
         return len(self.frame)
 
 
 def consolidate(input_dir: Path, options: QualityOptions | None = None) -> ConsolidationResult:
-    """Valide todas as entradas e concatene preservando valores e ordem."""
+    """Validate every input and concatenate preserving values and order."""
     options = options if options is not None else QualityOptions()
     paths = discover_input_files(input_dir)
     if not paths:
-        raise ConsolidationError(f"nenhum arquivo .xlsx em {input_dir}")
+        raise ConsolidationError(f"no .xlsx files in {input_dir}")
     files = tuple(read_sheet(path) for path in paths)
     stats = {}
     if options.any_standardization:
@@ -46,20 +46,20 @@ def consolidate(input_dir: Path, options: QualityOptions | None = None) -> Conso
     unknown = [column for column in options.key if column not in reference.columns]
     warnings: list[str] = []
     if unknown and options.remove_duplicates:
-        raise ConsolidationError(f"chave {options.key}: colunas desconhecidas {unknown} em {reference.path}")
+        raise ConsolidationError(f"key {options.key}: unknown columns {unknown} in {reference.path}")
     if unknown:
-        # A chave só é usada para remover: sem remoção, ela é ignorada e o relatório
-        # volta a comparar linhas idênticas, com aviso explícito em vez de erro.
+        # The key only drives removal: without removal it is ignored and the report
+        # falls back to identical rows, with an explicit warning instead of an error.
         warnings.append(
-            f"chave {options.key} ignorada: colunas desconhecidas {unknown} em {reference.path}; "
-            "duplicados contados no modo linhas_identicas"
+            f"key {options.key} ignored: unknown columns {unknown} in {reference.path}; "
+            "duplicates counted with mode identical_rows"
         )
         options = replace(options, key=())
     frames: list[pd.DataFrame] = []
     for sheet in files:
         if sheet is not reference:
             validate_headers(reference, sheet)
-        # object evita inferência numérica e a conversão de None em NaN.
+        # object avoids numeric inference and the conversion of None into NaN.
         frame = pd.DataFrame(sheet.rows, columns=sheet.columns, dtype=object)
         frame = frame.loc[:, list(reference.columns)].copy()
         frame[ORIGIN_COLUMN] = sheet.path.name

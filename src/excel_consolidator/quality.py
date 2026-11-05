@@ -1,4 +1,4 @@
-"""Padronização opcional e identificação de duplicados sem efeitos externos."""
+"""Optional standardization and duplicate detection without external effects."""
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -11,9 +11,9 @@ import pandas as pd
 
 from .reader import ORIGIN_COLUMN, SheetData
 
-TRIM_TEXT: str = "trim_texto"
-NORMALIZE_NUMBERS: str = "normalizar_numeros"
-DATES_ISO: str = "datas_iso"
+TRIM_TEXT: str = "trim_text"
+NORMALIZE_NUMBERS: str = "normalize_numbers"
+DATES_ISO: str = "dates_iso"
 
 _NUMBER_PATTERN = re.compile(r"-?(?:[0-9]+|[0-9]{1,3}(?:\.[0-9]{3})+)(?:,[0-9]+)?")
 _DATE_FORMATS: tuple[tuple[str, str, bool], ...] = (
@@ -26,7 +26,7 @@ _DATE_FORMATS: tuple[tuple[str, str, bool], ...] = (
 
 @dataclass(frozen=True)
 class QualityOptions:
-    """Regras explícitas de qualidade de dados."""
+    """Explicit data quality rules."""
 
     trim_text: bool = False
     normalize_numbers: bool = False
@@ -36,13 +36,13 @@ class QualityOptions:
 
     @property
     def any_standardization(self) -> bool:
-        """Indique se alguma regra de padronização está ativa."""
+        """Report whether any standardization rule is active."""
         return self.trim_text or self.normalize_numbers or self.dates_iso
 
 
 @dataclass(frozen=True)
 class ColumnStats:
-    """Alterações acumuladas e falhas por regra em uma coluna."""
+    """Accumulated changes and failures per rule in a column."""
 
     changed: int = 0
     failed: dict[str, int] = field(default_factory=dict)
@@ -51,7 +51,7 @@ class ColumnStats:
 
 @dataclass(frozen=True)
 class StandardizationResult:
-    """Nova planilha e contadores por coluna."""
+    """New sheet and per-column counters."""
 
     sheet: SheetData
     stats: dict[str, ColumnStats]
@@ -59,7 +59,7 @@ class StandardizationResult:
 
 @dataclass(frozen=True)
 class DuplicateReport:
-    """Contagens de duplicados para a política solicitada."""
+    """Duplicate counts for the requested policy."""
 
     total: int
     removed: int
@@ -67,30 +67,30 @@ class DuplicateReport:
 
 
 def _normalize_number(value: str) -> int | float:
-    """Converta somente números nos formatos brasileiros aceitos."""
+    """Convert only numbers written in the accepted pt-BR formats."""
     stripped = value.strip()
     if _NUMBER_PATTERN.fullmatch(stripped) is None:
-        raise ValueError("Formato numérico não suportado")
+        raise ValueError("unsupported number format")
     normalized = stripped.replace(".", "").replace(",", ".")
     if "," not in stripped:
         return int(normalized)
     result = float(normalized)
     if not math.isfinite(result):
-        raise ValueError("Número fora do intervalo finito")
+        raise ValueError("number outside the finite range")
     return result
 
 
 def _parse_date(value: str) -> date | datetime:
-    """Converta datas apenas nos formatos explícitos, com ano completo."""
+    """Convert dates only in the explicit formats, with a four-digit year."""
     for pattern, date_format, has_time in _DATE_FORMATS:
         if re.fullmatch(pattern, value) is not None:
             parsed = datetime.strptime(value, date_format)
             return parsed if has_time else parsed.date()
-    raise ValueError("Formato de data não suportado")
+    raise ValueError("unsupported date format")
 
 
 def standardize(sheet: SheetData, options: QualityOptions) -> StandardizationResult:
-    """Aplique regras em ordem e conte falhas apenas em células sem conversão."""
+    """Apply rules in order and count failures only in cells without conversion."""
     changes = {column: 0 for column in sheet.columns}
     failures: dict[str, dict[str, int]] = {column: {} for column in sheet.columns}
     rule_changes: dict[str, dict[str, int]] = {column: {} for column in sheet.columns}
@@ -136,13 +136,13 @@ def standardize(sheet: SheetData, options: QualityOptions) -> StandardizationRes
 
 
 def find_duplicates(frame: pd.DataFrame, columns: Sequence[str]) -> pd.Series:
-    """Marque ocorrências duplicadas posteriores à primeira."""
+    """Mark duplicate occurrences after the first one."""
     return frame.duplicated(subset=list(columns), keep="first")
 
 
 def build_duplicate_report(frame: pd.DataFrame, options: QualityOptions) -> DuplicateReport:
-    """Conte duplicados por chave ou por linha sem a coluna de origem."""
+    """Count duplicates by key or by whole row without the origin column."""
     columns = options.key or tuple(column for column in frame.columns if column != ORIGIN_COLUMN)
     total = int(find_duplicates(frame, columns).sum())
-    mode = "chave:" + ",".join(options.key) if options.key else "linhas_identicas"
+    mode = "key:" + ",".join(options.key) if options.key else "identical_rows"
     return DuplicateReport(total, total if options.remove_duplicates else 0, mode)

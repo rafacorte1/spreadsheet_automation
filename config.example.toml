@@ -1,13 +1,13 @@
-# Caminhos relativos ao diretório deste arquivo.
+# Paths are relative to the directory of this file.
 input = "data/input"
-output = "data/output/consolidado.xlsx"
-log_file = "data/output/consolidacao.log"
+output = "data/output/consolidated.xlsx"
+log_file = "data/output/consolidation.log"
 
-[qualidade]
-# Padronizações opcionais.
-trim_texto = false
-normalizar_numeros = false
-datas_iso = false
-# Remoção opcional e colunas usadas como chave.
-remover_duplicados = false
-chave = ["produto"]
+[quality]
+# Optional standardisation.
+trim_text = false
+normalize_numbers = false
+dates_iso = false
+# Optional duplicate removal and the columns used as key.
+remove_duplicates = false
+key = ["product"]

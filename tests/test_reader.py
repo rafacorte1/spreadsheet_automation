@@ -1,4 +1,4 @@
-"""Testes com planilhas sintéticas criadas em diretórios temporários."""
+"""Tests with synthetic spreadsheets created in temporary directories."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -13,7 +13,7 @@ from excel_consolidator.reader import (
 
 
 def make_sheet(tmp_path: Path, rows: list[list[object]], name: str = "input.xlsx") -> Path:
-    """Crie uma entrada sintética e feche o workbook."""
+    """Create a synthetic input and close the workbook."""
     path = tmp_path / name
     workbook = Workbook()
     for row in rows:
@@ -39,15 +39,15 @@ def test_discover_empty_and_missing(tmp_path: Path) -> None:
 
 
 def test_read_valid_raw_values_and_preserve_input(tmp_path: Path) -> None:
-    path = make_sheet(tmp_path, [[" Nome ", 42], ["Ana", 7], ["Bia", False]])
+    path = make_sheet(tmp_path, [[" Name ", 42], ["Ana", 7], ["Bea", False]])
     original = path.read_bytes()
-    assert read_sheet(path) == SheetData(path, (" Nome ", "42"), (("Ana", 7), ("Bia", False)))
+    assert read_sheet(path) == SheetData(path, (" Name ", "42"), (("Ana", 7), ("Bea", False)))
     assert path.read_bytes() == original
 
 
 @pytest.mark.parametrize("header", [
     [None, "B"], ["", "B"], ["   ", "B"], ["A", None, "B"],
-    ["A", "A"], [1, "1"], ["arquivo_origem", "B"],
+    ["A", "A"], [1, "1"], ["source_file", "B"],
 ])
 def test_invalid_headers(tmp_path: Path, header: list[object]) -> None:
     path = make_sheet(tmp_path, [header, [1] * len(header)])
@@ -66,13 +66,13 @@ def test_corrupted_file_wraps_cause(tmp_path: Path) -> None:
 @pytest.mark.parametrize("rows", [[["A"]], [["A"], [None], [""]]])
 def test_no_data(tmp_path: Path, rows: list[list[object]]) -> None:
     path = make_sheet(tmp_path, rows)
-    with pytest.raises(ConsolidationError, match="sem linhas de dados"):
+    with pytest.raises(ConsolidationError, match="no data rows"):
         read_sheet(path)
 
 
 def test_empty_sheet(tmp_path: Path) -> None:
     path = make_sheet(tmp_path, [])
-    with pytest.raises(ConsolidationError, match="sem cabeçalho"):
+    with pytest.raises(ConsolidationError, match="missing header"):
         read_sheet(path)
 
 
@@ -85,7 +85,7 @@ def test_short_rows_and_internal_empty_rows(tmp_path: Path) -> None:
 
 def test_extra_value_beyond_header(tmp_path: Path) -> None:
     path = make_sheet(tmp_path, [["A"], [1, 2]])
-    with pytest.raises(ConsolidationError, match="além da última coluna"):
+    with pytest.raises(ConsolidationError, match="beyond the last header column"):
         read_sheet(path)
 
 
@@ -94,7 +94,7 @@ def test_only_first_sheet(tmp_path: Path) -> None:
     workbook = Workbook()
     workbook.active.append(["A"])
     workbook.active.append([1])
-    workbook.create_sheet("ignored").append(["arquivo_origem"])
+    workbook.create_sheet("ignored").append(["source_file"])
     workbook.save(path)
     workbook.close()
     assert read_sheet(path).rows == ((1,),)
@@ -106,7 +106,7 @@ def test_reordered_headers(tmp_path: Path) -> None:
     assert validate_headers(reference, candidate) is None
 
 
-@pytest.mark.parametrize("candidate_columns", [("A", "C"), ("a", "B"), (" A", "B"), ("Á", "B")])
+@pytest.mark.parametrize("candidate_columns", [("A", "C"), ("a", "B"), (" A", "B"), ("A", "B ")])
 def test_incompatible_literal_headers(tmp_path: Path, candidate_columns: tuple[str, ...]) -> None:
     reference = SheetData(tmp_path / "a.xlsx", ("A", "B"), ())
     candidate = SheetData(tmp_path / "b.xlsx", candidate_columns, ())
@@ -114,6 +114,6 @@ def test_incompatible_literal_headers(tmp_path: Path, candidate_columns: tuple[s
         validate_headers(reference, candidate)
     message = str(caught.value)
     assert str(candidate.path) in message
-    assert "faltantes:" in message and "excedentes:" in message
+    assert "missing columns:" in message and "extra columns:" in message
     for name in set(reference.columns) ^ set(candidate.columns):
         assert repr(name) in message

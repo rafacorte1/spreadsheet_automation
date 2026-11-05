@@ -1,4 +1,4 @@
-"""Relatório de qualidade sobre os dados anteriores à deduplicação."""
+"""Quality report over the data before deduplication."""
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
@@ -9,8 +9,8 @@ import pandas as pd
 from .quality import DATES_ISO, NORMALIZE_NUMBERS, TRIM_TEXT, ColumnStats, DuplicateReport, QualityOptions
 from .reader import ORIGIN_COLUMN, SheetData
 
-REPORT_SHEET: str = "relatorio"
-REPORT_COLUMNS: tuple[str, ...] = ("secao", "arquivo", "coluna", "metrica", "valor")
+REPORT_SHEET: str = "report"
+REPORT_COLUMNS: tuple[str, ...] = ("section", "file", "column", "metric", "value")
 
 
 @dataclass(frozen=True)
@@ -22,7 +22,7 @@ class QualitySummary:
 
 
 def count_nulls(sheet: SheetData) -> dict[str, int]:
-    """Conte None e textos vazios, ignorando a coluna de origem."""
+    """Count None and empty text, ignoring the origin column."""
     return {
         column: sum(row[index] is None or (isinstance(row[index], str) and not row[index].strip())
                     for row in sheet.rows)
@@ -36,13 +36,13 @@ def build_report(
     duplicates: DuplicateReport,
     options: QualityOptions,
 ) -> pd.DataFrame:
-    """Monte seções em ordem estável, incluindo contadores zerados."""
+    """Build the sections in a stable order, including zeroed counters."""
     ordered = sorted(sheets, key=lambda sheet: sheet.path.name)
     rows: list[tuple[object, ...]] = [
-        ("resumo", sheet.path.name, "", "linhas_lidas", len(sheet.rows)) for sheet in ordered
+        ("summary", sheet.path.name, "", "rows_read", len(sheet.rows)) for sheet in ordered
     ]
     for sheet in ordered:
-        rows.extend(("nulos", sheet.path.name, column, "nulos", count)
+        rows.extend(("nulls", sheet.path.name, column, "nulls", count)
                     for column, count in count_nulls(sheet).items())
     for sheet in ordered:
         for column in sheet.columns:
@@ -53,23 +53,23 @@ def build_report(
                                   (options.normalize_numbers, NORMALIZE_NUMBERS),
                                   (options.dates_iso, DATES_ISO)):
                 if enabled:
-                    rows.append(("padronizacao", sheet.path.name, column, f"alterados_{rule}",
+                    rows.append(("standardization", sheet.path.name, column, f"changed_{rule}",
                                  column_stats.changed_by_rule.get(rule, 0)))
-                    rows.append(("padronizacao", sheet.path.name, column, f"falhas_{rule}",
+                    rows.append(("standardization", sheet.path.name, column, f"failed_{rule}",
                                  column_stats.failed.get(rule, 0)))
-    rows.extend(("duplicados", "", "", metric, value) for metric, value in (
-        ("modo", duplicates.mode), ("linhas_duplicadas", duplicates.total),
-        ("linhas_removidas", duplicates.removed),
+    rows.extend(("duplicates", "", "", metric, value) for metric, value in (
+        ("mode", duplicates.mode), ("duplicate_rows", duplicates.total),
+        ("rows_removed", duplicates.removed),
     ))
     return pd.DataFrame(rows, columns=REPORT_COLUMNS)
 
 
 def summarize(report: pd.DataFrame) -> QualitySummary:
-    """Extraia os quatro contadores exibidos pela CLI."""
-    duplicates = report.loc[report["secao"] == "duplicados"].set_index("metrica")["valor"]
-    changed = (report["secao"] == "padronizacao") & report["metrica"].str.startswith("alterados_")
+    """Extract the four counters printed by the CLI."""
+    duplicates = report.loc[report["section"] == "duplicates"].set_index("metric")["value"]
+    changed = (report["section"] == "standardization") & report["metric"].str.startswith("changed_")
     return QualitySummary(
-        int(report.loc[report["secao"] == "nulos", "valor"].sum()),
-        int(duplicates["linhas_duplicadas"]), int(duplicates["linhas_removidas"]),
-        int(report.loc[changed, "valor"].sum()),
+        int(report.loc[report["section"] == "nulls", "value"].sum()),
+        int(duplicates["duplicate_rows"]), int(duplicates["rows_removed"]),
+        int(report.loc[changed, "value"].sum()),
     )

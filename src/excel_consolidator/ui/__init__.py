@@ -1,1 +1,1 @@
-"""Pacote da interface gráfica."""
+"""Graphical interface package."""

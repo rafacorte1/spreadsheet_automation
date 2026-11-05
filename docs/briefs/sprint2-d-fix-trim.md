@@ -1,47 +1,47 @@
-# Codex spec — Sprint 2, correção 2 da Etapa C (falha engolida pelo trim)
+# Codex spec: Sprint 2, Stage C fix 2 (failure swallowed by trim)
 
-Repo: /home/hermes/spreadsheet_automation. Corrija apenas `src/excel_consolidator/quality.py` e adicione testes em `tests/test_quality.py`.
+Repo root. Fix only `src/excel_consolidator/quality.py` and add tests in `tests/test_quality.py`.
 
-## DEFEITO
+## DEFECT
 
-Em `standardize`, a gravação de falhas está condicionada a `if not cell_changes:`. Como `trim_texto` também incrementa `cell_changes`, uma célula que só foi aparada perde as falhas de conversão.
+In `standardize`, failures are recorded only under `if not cell_changes:`. Because `trim_text` also increments `cell_changes`, a cell that was only trimmed loses its conversion failures.
 
-Reprodução:
+Reproduction:
 ```python
-s = SheetData(Path("a.xlsx"), ("Nome",), (("  Ana  ",),))
-standardize(s, QualityOptions(trim_text=True, normalize_numbers=True, dates_iso=True)).stats["Nome"]
-# hoje: ColumnStats(changed=1, failed={}, changed_by_rule={'trim_texto': 1})
-# correto: ColumnStats(changed=1, failed={'normalizar_numeros': 1, 'datas_iso': 1}, changed_by_rule={'trim_texto': 1})
+s = SheetData(Path("a.xlsx"), ("Name",), (("  Ana  ",),))
+standardize(s, QualityOptions(trim_text=True, normalize_numbers=True, dates_iso=True)).stats["Name"]
+# current: ColumnStats(changed=1, failed={}, changed_by_rule={'trim_text': 1})
+# correct: ColumnStats(changed=1, failed={'normalize_numbers': 1, 'dates_iso': 1}, changed_by_rule={'trim_text': 1})
 ```
 
-`"Ana"` (aparado de `"  Ana  "`) não é número nem data: as duas conversões falharam e o relatório precisa dizer isso.
+`"Ana"` (trimmed from `"  Ana  "`) is neither a number nor a date: both conversions failed and the report has to say so.
 
-## REGRA CORRETA
+## CORRECT RULE
 
-A supressão de falha existe só para célula que uma regra de **conversão** (`normalizar_numeros` ou `datas_iso`) converteu com sucesso. Portanto:
+Failure suppression exists only for a cell that a **conversion** rule (`normalize_numbers` or `dates_iso`) converted successfully. Therefore:
 
-- marque `converted = True` apenas quando um converter retornar valor (não quando trim alterar a string);
-- registre as falhas acumuladas da célula quando `converted` for `False`, independentemente de trim ter alterado a célula;
-- `changed` e `changed_by_rule` continuam como estão (trim + conversão na mesma célula somam 2).
+- set `converted = True` only when a converter returns a value, not when trim changes the string;
+- record the accumulated failures for the cell when `converted` is `False`, regardless of trim having changed the cell;
+- `changed` and `changed_by_rule` stay as they are (trim plus conversion on the same cell sums 2).
 
-Não altere o comportamento de string vazia/só espaços: elas continuam não sendo tentadas por conversores e não contam falha.
+Do not change the behaviour for empty or whitespace-only strings: they are still not tried by the converters and count no failure.
 
-## TESTES A ADICIONAR (não remova nem relaxe os existentes)
+## TESTS TO ADD (do not remove or weaken the existing ones)
 
-1. `("  Ana  ",)` com `trim_text=True, normalize_numbers=True, dates_iso=True` -> valor `"Ana"`, `changed == 1`, `changed_by_rule == {'trim_texto': 1}`, `failed == {'normalizar_numeros': 1, 'datas_iso': 1}`.
-2. `(" 42 ",)` com as três flags (caso já coberto) continua `changed == 2` e `failed == {}`.
-3. `(" 05/11/2026 ",)` com as três flags -> `date(2026, 11, 5)`, `changed == 2`, `failed == {}`.
-4. `(" abc ",)` com as três flags -> `"abc"`, `changed == 1`, `failed` com as duas regras.
-5. Coluna mista `[("  Ana  ",), ("1.234,56",), ("",)]` com as três flags -> `changed == 4` (2 de trim + 1 de número + 0), `failed == {'normalizar_numeros': 1, 'datas_iso': 1}` (só a célula `"Ana"`), e o relatório com `falhas_*` coerentes.
+1. `("  Ana  ",)` with `trim_text=True, normalize_numbers=True, dates_iso=True` gives `"Ana"`, `changed == 1`, `changed_by_rule == {'trim_text': 1}`, `failed == {'normalize_numbers': 1, 'dates_iso': 1}`.
+2. `(" 42 ",)` with the three flags (already covered) stays `changed == 2` and `failed == {}`.
+3. `(" 05/11/2026 ",)` with the three flags gives `date(2026, 11, 5)`, `changed == 2`, `failed == {}`.
+4. `(" abc ",)` with the three flags gives `"abc"`, `changed == 1`, `failed` with both rules.
+5. Mixed column `[("  Ana  ",), ("1.234,56",), ("",)]` with the three flags gives `changed == 4` (2 from trim, 1 from numbers, 0), `failed == {'normalize_numbers': 1, 'dates_iso': 1}` (only the `"Ana"` cell), and the report with coherent `failed_*` metrics.
 
-## NÃO FAÇA
+## DO NOT
 
-- não altere `reader.py`, `report.py`, `writer.py`, `consolidator.py`, `cli.py`, `README.md` nem os outros testes
-- não mude assinaturas públicas
-- sem dependência nova, sem `git add/commit/push`
+- do not change `reader.py`, `report.py`, `writer.py`, `consolidator.py`, `cli.py`, `README.md` or the other tests
+- do not change public signatures
+- no new dependency, no `git add/commit/push`
 
-## REGRAS
+## RULES
 
-- `cd /home/hermes/spreadsheet_automation && .venv/bin/python -m pytest tests -q`
-- **Se um teste não passar, corrija o código; nunca relaxe o teste.**
-- Cole a saída real do pytest (contagem total) e o trecho de código que mudou.
+- `.venv/bin/python -m pytest tests -q`
+- **If a test fails, fix the code; never weaken the test.**
+- Paste the real pytest output (total count) and the code snippet that changed.

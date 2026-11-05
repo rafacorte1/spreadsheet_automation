@@ -1,4 +1,4 @@
-"""Execute o pacote como módulo."""
+"""Run the package as a module."""
 from __future__ import annotations
 
 from .cli import main

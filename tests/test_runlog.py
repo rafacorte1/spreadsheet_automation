@@ -1,4 +1,4 @@
-"""Ciclo de vida e rotação dos logs com entradas sintéticas."""
+"""Log lifecycle and rotation with synthetic inputs."""
 import re
 import logging
 
@@ -21,9 +21,9 @@ def test_real_execution_appends(tmp_path, make_xlsx, capsys):
     lines = first.splitlines()
     assert len(lines) == 3
     assert all(re.match(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} INFO ', line) for line in lines)
-    assert 'inicio input=' in lines[0] and 'flags=nenhum chave=-' in lines[0]
-    assert lines[1].endswith('leitura arquivos=1 linhas_lidas=2')
-    assert 'gravado linhas=2 nulos=0 duplicados=1 removidos=0 alterados=0 saida=' in lines[2]
+    assert 'start input=' in lines[0] and 'flags=none key=-' in lines[0]
+    assert lines[1].endswith('read files=1 rows_read=2')
+    assert 'written rows=2 nulls=0 duplicates=1 removed=0 changed=0 output=' in lines[2]
     assert main(args) == 0
     assert log.read_text().startswith(first)
     assert len(log.read_text().splitlines()) == 6

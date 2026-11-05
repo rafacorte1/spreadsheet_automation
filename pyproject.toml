@@ -5,12 +5,39 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "excel-consolidator"
 version = "0.1.0"
+description = "Consolidate .xlsx files into a single workbook with data-quality reporting, TOML configuration and a desktop GUI."
+readme = "README.md"
 requires-python = ">=3.11"
+authors = [{ name = "Rafael Corte" }]
+keywords = ["excel", "xlsx", "etl", "data-quality", "pandas", "openpyxl", "cli", "customtkinter"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: End Users/Desktop",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Office/Business :: Financial :: Spreadsheet",
+  "Topic :: Scientific/Engineering :: Information Analysis",
+]
 dependencies = ["pandas", "openpyxl"]
 
 [project.optional-dependencies]
 dev = ["pytest"]
 ui = ["customtkinter>=5.2"]
 
+[project.scripts]
+excel-consolidator = "excel_consolidator.cli:main"
+excel-consolidator-ui = "excel_consolidator.ui.app:main"
+
+[project.urls]
+Source = "https://github.com/rafacorte1/spreadsheet_automation"
+
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

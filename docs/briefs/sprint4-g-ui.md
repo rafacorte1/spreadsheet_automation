@@ -1,30 +1,30 @@
-# Brief — Sprint 4: interface customtkinter
+# Brief: Sprint 4, customtkinter interface
 
-Aprovado pelo PO nesta sessão. Este brief registra o que foi pedido e com quais critérios foi aceito.
+Approved by the PO in the session that produced it. This brief records what was asked and the criteria it was accepted against.
 
-## Decisões do PO
+## PO decisions
 
-1. Abas: **Resumo + Relatório + Log**.
-2. `config.toml` é carregado ao abrir a janela, com botão **Recarregar config**.
-3. A UI **grava log em arquivo**, no caminho do config, igual à CLI.
+1. Tabs: **Summary + Report + Log**.
+2. `config.toml` is loaded when the window opens, with a **Reload config** button.
+3. The UI **writes a log file**, at the path from the config, like the CLI.
 
-## Escopo entregue
+## Delivered scope
 
-- `ui/controller.py`: `FormFields`, `build_config`, `load_base`, `split_key`, `read_log_tail`, `format_summary`, `run_from_fields` → `RunOutcome`. Sem importar tkinter.
-- `ui/app.py`: campos de caminho (entrada, saída, log) com "Procurar", quatro interruptores de qualidade, campo de chave, botões Consolidar / Recarregar config / Abrir pasta de saída, barra de progresso, status, e as abas Resumo (texto), Relatório (Treeview com `secao, arquivo, coluna, metrica, valor`) e Log (rabo do arquivo + Atualizar).
-- `ui/__main__.py`: `python -m excel_consolidator.ui`, com `--config PATH` opcional.
-- `pyproject.toml`: extra opcional `ui = ["customtkinter>=5.2"]`.
+- `ui/controller.py`: `FormFields`, `build_config`, `load_base`, `split_key`, `read_log_tail`, `format_summary`, `run_from_fields` returning `RunOutcome`. No tkinter import.
+- `ui/app.py`: path fields (input, output, log) with a browse button, four quality switches, a key field, the Consolidate / Reload config / Open output folder buttons, a progress bar, a status line, and the Summary tab (text), Report tab (Treeview with `section, file, column, metric, value`) and Log tab (file tail plus a refresh button).
+- `ui/__main__.py`: `python -m excel_consolidator.ui`, with an optional `--config PATH`.
+- `pyproject.toml`: optional extra `ui = ["customtkinter>=5.2"]`.
 
-## Critérios de aceite e evidência
+## Acceptance criteria and evidence
 
-| Critério | Evidência |
+| Criterion | Evidence |
 |---|---|
-| Suíte verde, incluindo controller sem abrir janela | `pytest tests -q` → 179 passed |
-| `python -m excel_consolidator.ui` abre a janela | processo sobe sem erro; janela "Excel Consolidator" 1024x752 visível na árvore de acessibilidade do macOS; captura de tela bloqueada pelo SO nesta máquina |
-| Consolidar pela janela gera o mesmo resultado da CLI | `test_run_from_window_writes_output_and_fills_tabs`: 2 arquivos, 2 linhas, abas preenchidas, log com `gravado` |
-| Erro mostra mensagem e preserva saída anterior | `test_error_is_shown_without_closing` + `test_error_preserves_previous_output` |
-| Não congela durante a execução | execução em thread com resultado por `queue.Queue` + `after` |
+| Green suite, including the controller without opening a window | `pytest tests -q` gives 179 passed |
+| `python -m excel_consolidator.ui` opens the window | process starts without error; window "Excel Consolidator" 1024x752 visible in the macOS accessibility tree; screen capture blocked by the OS on this machine |
+| Consolidating from the window produces the same result as the CLI | `test_run_from_window_writes_output_and_fills_tabs`: 2 files, 2 rows, tabs filled, log with `written` |
+| An error shows a message and preserves the previous output | `test_error_is_shown_without_closing` and `test_error_preserves_previous_output` |
+| Does not freeze during the run | execution in a thread with the result delivered through `queue.Queue` and `after` |
 
-## Fora de escopo
+## Out of scope
 
-Empacotamento `.app`, ícone, agendamento, múltiplas abas de planilha, `.xls`/`.csv`, edição dos dados na tela.
+`.app` packaging, icon, scheduling, multiple spreadsheet sheets, `.xls` or `.csv`, editing data in the window.

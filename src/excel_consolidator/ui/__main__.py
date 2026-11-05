@@ -1,4 +1,4 @@
-"""Ponto de entrada da interface gráfica."""
+"""Graphical interface entry point."""
 from __future__ import annotations
 
 from .app import main

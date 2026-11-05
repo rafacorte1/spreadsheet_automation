@@ -1,4 +1,4 @@
-"""Aceite da publicação atômica e limpeza dos temporários."""
+"""Acceptance of the atomic publication and temporary file cleanup."""
 from __future__ import annotations
 
 import pandas as pd
@@ -11,11 +11,11 @@ from excel_consolidator.reader import ConsolidationError
 
 def test_workbook_values_and_created_directory(tmp_path):
     output = tmp_path / "new" / "nested" / "result.xlsx"
-    frame = pd.DataFrame([["Ana", 1.25, True, None], ["Bia", 2, False, "fim"]], columns=["nome", "valor", "ativo", "opcional"], dtype=object)
+    frame = pd.DataFrame([["Ana", 1.25, True, None], ["Bea", 2, False, "end"]], columns=["name", "amount", "active", "optional"], dtype=object)
     writer.write_atomic(frame, output)
     workbook = load_workbook(output, data_only=True)
     try:
-        assert workbook.sheetnames == ["consolidado"]
+        assert workbook.sheetnames == ["consolidated"]
         assert list(workbook.active.values) == [tuple(frame.columns), *map(tuple, frame.values.tolist())]
     finally:
         workbook.close()
@@ -29,7 +29,7 @@ def test_failure_preserves_previous_output_and_cleans_temp(tmp_path, monkeypatch
     before = output.read_bytes()
 
     def fail(*args, **kwargs):
-        raise OSError("falha forçada")
+        raise OSError("forced failure")
 
     if stage == "replace":
         def fail_replace(source, destination):
@@ -63,25 +63,25 @@ def test_report_columns_order_and_failure_preserves_output(tmp_path, monkeypatch
     from excel_consolidator.report import REPORT_COLUMNS
     output = tmp_path / "result.xlsx"
     frame = pd.DataFrame({"A": [1]})
-    report = pd.DataFrame([[0, "nulos", "a.xlsx", "A", "nulos"]],
-                          columns=["valor", "secao", "arquivo", "coluna", "metrica"])
+    report = pd.DataFrame([[0, "nulls", "a.xlsx", "A", "nulls"]],
+                          columns=["value", "section", "file", "column", "metric"])
     writer.write_atomic(frame, output, report)
     workbook = load_workbook(output)
     try:
-        assert workbook.sheetnames == ["consolidado", "relatorio"]
-        assert list(workbook["relatorio"].values) == [REPORT_COLUMNS, ("nulos", "a.xlsx", "A", "nulos", 0)]
+        assert workbook.sheetnames == ["consolidated", "report"]
+        assert list(workbook["report"].values) == [REPORT_COLUMNS, ("nulls", "a.xlsx", "A", "nulls", 0)]
     finally:
         workbook.close()
     before = output.read_bytes()
     original = pd.DataFrame.to_excel
 
     def fail_report(self, *args, **kwargs):
-        if kwargs.get("sheet_name") == "relatorio":
-            raise OSError("falha no relatório")
+        if kwargs.get("sheet_name") == "report":
+            raise OSError("report failure")
         return original(self, *args, **kwargs)
 
     monkeypatch.setattr(pd.DataFrame, "to_excel", fail_report)
-    with pytest.raises(ConsolidationError, match="falha no relatório"):
+    with pytest.raises(ConsolidationError, match="report failure"):
         writer.write_atomic(frame, output, report)
     assert output.read_bytes() == before
     assert list(tmp_path.iterdir()) == [output]

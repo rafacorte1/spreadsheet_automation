@@ -1,4 +1,4 @@
-"""Fábricas de entradas sintéticas para os testes de aceite."""
+"""Factories for the synthetic inputs used by the acceptance tests."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -10,7 +10,7 @@ import pytest
 
 @pytest.fixture(autouse=True, scope="function")
 def isolate_working_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Mantém arquivos gerados por caminhos relativos no temporário de cada teste."""
+    """Keep files created through relative paths inside each test's temporary directory."""
     monkeypatch.chdir(tmp_path)
 
 

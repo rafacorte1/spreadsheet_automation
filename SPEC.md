@@ -1,37 +1,44 @@
-# Excel Consolidator — Especificação v0.1
+# Excel Consolidator: Specification v0.1
 
-## Objetivo
-Construir uma ferramenta CLI Python para consolidar verticalmente arquivos `.xlsx` de uma pasta, preservando a origem de cada linha.
+## Objective
 
-## Arquitetura
-Python >=3.11; pandas, openpyxl; pytest. Pacote `src/excel_consolidator` com `cli.py`, `reader.py`, `consolidator.py`, `writer.py`. Pastas `data/input` e `data/output`. Sem APIs, banco de dados ou UI.
+Build a Python CLI tool that consolidates `.xlsx` files from a folder vertically, preserving the origin of every row.
 
-## Roadmap (gates obrigatórios)
-- Sprint 1: MVP de leitura, validação estrutural e exportação.
-- Sprint 2: qualidade de dados (nulos, duplicados, padronização e relatório de inconsistências), somente após aprovação explícita.
-- Sprint 3: configuração, logs e execução recorrente, somente após aprovação explícita.
+## Architecture
 
-## Sprint 1 — requisitos
-1. Descobrir arquivos `.xlsx` diretamente em `data/input`, em ordem alfabética; ignorar `~$*`.
-2. Ler apenas a primeira aba de cada arquivo.
-3. Exigir cabeçalhos não vazios, únicos e idênticos entre arquivos, independentemente da ordem; comparação literal de nomes, sem normalização.
-4. Reordenar colunas para a ordem do primeiro arquivo; concatenar verticalmente, sem deduplicar, com coluna adicional `arquivo_origem` contendo o nome do arquivo.
-5. Rejeitar entrada que já possua coluna `arquivo_origem` para evitar colisão.
-6. Exportar `data/output/consolidado.xlsx` com uma aba, somente após todos os arquivos serem validados; escrita em arquivo temporário no diretório de saída e substituição atômica ao final, para não sobrescrever resultado anterior em caso de erro.
-7. Informar no terminal total de arquivos e linhas e caminho da saída.
-8. Se não houver arquivos, se um arquivo estiver corrompido, sem cabeçalho, sem linhas de dados ou com colunas incompatíveis, terminar com código diferente de zero e mensagem útil.
-9. Não alterar os arquivos de entrada.
+Python >=3.11; pandas, openpyxl; pytest. Package `src/excel_consolidator` with `cli.py`, `reader.py`, `consolidator.py`, `writer.py`. Folders `data/input` and `data/output`. No APIs, no database, no UI.
 
-## Testes e aceite do Sprint 1
-- Dois arquivos com mesmas colunas e ordens diferentes geram todas as linhas e `arquivo_origem` correto.
-- Arquivos temporários ignorados.
-- Diretório vazio, arquivo corrompido, cabeçalhos incompatíveis, duplicados, colisão de `arquivo_origem` e arquivo sem registros produzem erro controlado.
-- Resultado anterior permanece intacto após falha.
-- Testes automatizados via pytest passam; comando CLI demonstrado com dados sintéticos.
-- README contém instalação, execução, limitações e exemplos.
+## Roadmap (mandatory gates)
 
-## Limites
-Sem normalização de cabeçalhos, deduplicação, validação de valores, processamento de `.xls` ou `.csv`, agendamento, interface gráfica ou envio de e-mail no Sprint 1.
+- Sprint 1: MVP for reading, structural validation and export.
+- Sprint 2: data quality (nulls, duplicates, standardisation and inconsistency report), only after explicit approval.
+- Sprint 3: configuration, logs and recurring execution, only after explicit approval.
 
-## Definição de pronto
-Código funcional, testes executados, documentação, demonstração com dados sintéticos e relatório final do Hermes com evidências. A aprovação do usuário é necessária para iniciar Sprint 2.
+## Sprint 1 requirements
+
+1. Discover `.xlsx` files directly in `data/input`, in alphabetical order; ignore `~$*`.
+2. Read only the first sheet of each file.
+3. Require headers that are non-empty, unique and identical across files, regardless of order; compare names literally, without normalisation.
+4. Reorder columns to the order of the first file; concatenate vertically without deduplicating, with an extra `source_file` column holding the file name.
+5. Reject input that already has a `source_file` column, to avoid a collision.
+6. Export `data/output/consolidated.xlsx` with one sheet, only after all files are validated; write to a temporary file in the output directory and replace atomically at the end, so a previous result is not overwritten on error.
+7. Report on the terminal the total number of files and rows and the output path.
+8. If there are no files, or a file is corrupted, has no header, has no data rows or has incompatible columns, exit with a non-zero code and a useful message.
+9. Do not modify the input files.
+
+## Tests and acceptance for Sprint 1
+
+- Two files with the same columns in different orders produce all rows and the correct `source_file`.
+- Temporary files are ignored.
+- An empty directory, a corrupted file, incompatible headers, duplicate headers, a `source_file` collision and a file with no records each produce a controlled error.
+- The previous result stays intact after a failure.
+- Automated tests via pytest pass; the CLI command is demonstrated with synthetic data.
+- README contains installation, usage, limitations and examples.
+
+## Limits
+
+No header normalisation, deduplication, value validation, `.xls` or `.csv` processing, scheduling, graphical interface or email sending in Sprint 1.
+
+## Definition of done
+
+Working code, tests executed, documentation, a demonstration with synthetic data and a final Hermes report with evidence. User approval is required to start Sprint 2.

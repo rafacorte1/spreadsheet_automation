@@ -1,4 +1,4 @@
-"""Janela customtkinter: só widgets, toda a lógica vive no controller."""
+"""CustomTkinter window: widgets only, all logic lives in the controller."""
 from __future__ import annotations
 
 import argparse
@@ -20,12 +20,12 @@ from .controller import FormFields, RunOutcome
 WINDOW_TITLE: str = "Excel Consolidator"
 WINDOW_SIZE: str = "1024x720"
 _SECTION_PAD = {"padx": 16, "pady": (0, 10)}
-_ESTILO_TABELA = "Relatorio.Treeview"
-_LARGURAS = {"secao": 110, "arquivo": 150, "coluna": 150, "metrica": 190, "valor": 90}
+_TABLE_STYLE = "Report.Treeview"
+_COLUMN_WIDTHS = {"section": 110, "file": 150, "column": 150, "metric": 190, "value": 90}
 
 
 class App(ctk.CTk):
-    """Tela principal da consolidação."""
+    """Main consolidation screen."""
 
     def __init__(self, config_path: Path | None = None) -> None:
         super().__init__()
@@ -37,7 +37,7 @@ class App(ctk.CTk):
         self._load_config(initial=True)
         self.after(120, self._poll_queue)
 
-    # construção
+    # construction
     def _build_widgets(self) -> None:
         self.title(WINDOW_TITLE)
         self.geometry(WINDOW_SIZE)
@@ -51,7 +51,7 @@ class App(ctk.CTk):
         self.input_var = ctk.StringVar()
         self.output_var = ctk.StringVar()
         self.log_var = ctk.StringVar()
-        labels = ("Pasta de entrada", "Arquivo de saída", "Arquivo de log")
+        labels = ("Input folder", "Output file", "Log file")
         for row, (label, variable) in enumerate(zip(
             labels, (self.input_var, self.output_var, self.log_var), strict=True
         )):
@@ -60,7 +60,7 @@ class App(ctk.CTk):
             ctk.CTkEntry(paths, textvariable=variable).grid(
                 row=row, column=1, padx=8, pady=8, sticky="ew")
             ctk.CTkButton(
-                paths, text="Procurar", width=100,
+                paths, text="Browse", width=100,
                 command=lambda target=variable, kind=row: self._browse(target, kind),
             ).grid(row=row, column=2, padx=(8, 16), pady=8)
 
@@ -72,54 +72,55 @@ class App(ctk.CTk):
         self.dates_var = ctk.BooleanVar(value=False)
         self.duplicates_var = ctk.BooleanVar(value=False)
         switches = (
-            ("Aparar texto", self.trim_var),
-            ("Números pt-BR", self.numbers_var),
-            ("Datas ISO", self.dates_var),
-            ("Remover duplicados", self.duplicates_var),
+            ("Trim text", self.trim_var),
+            ("pt-BR numbers", self.numbers_var),
+            ("ISO dates", self.dates_var),
+            ("Remove duplicates", self.duplicates_var),
         )
         for column, (label, variable) in enumerate(switches):
             ctk.CTkSwitch(quality, text=label, variable=variable).grid(
                 row=0, column=column, padx=(16, 8), pady=12, sticky="w")
-        ctk.CTkLabel(quality, text="Chave (separada por vírgula)", anchor="w").grid(
+        ctk.CTkLabel(quality, text="Key (comma separated)", anchor="w").grid(
             row=1, column=0, padx=(16, 8), pady=(0, 14), sticky="w")
         self.key_var = ctk.StringVar()
-        ctk.CTkEntry(quality, textvariable=self.key_var, placeholder_text="produto, data").grid(
+        ctk.CTkEntry(quality, textvariable=self.key_var, placeholder_text="product, date").grid(
             row=1, column=1, columnspan=2, padx=8, pady=(0, 14), sticky="ew")
 
         actions = ctk.CTkFrame(self, fg_color="transparent")
         actions.grid(row=2, column=0, sticky="ew", **_SECTION_PAD)
-        self.consolidar = ctk.CTkButton(actions, text="Consolidar", width=150, command=self._start_run)
-        self.consolidar.grid(row=0, column=0, padx=(16, 8), pady=8)
-        ctk.CTkButton(actions, text="Recarregar config", width=160,
+        self.consolidate_button = ctk.CTkButton(actions, text="Consolidate", width=150,
+                                                command=self._start_run)
+        self.consolidate_button.grid(row=0, column=0, padx=(16, 8), pady=8)
+        ctk.CTkButton(actions, text="Reload config", width=160,
                       command=self._reload_config).grid(row=0, column=1, padx=8, pady=8)
-        ctk.CTkButton(actions, text="Abrir pasta de saída", width=170,
+        ctk.CTkButton(actions, text="Open output folder", width=170,
                       command=self._open_output_folder).grid(row=0, column=2, padx=8, pady=8)
         self.progress = ctk.CTkProgressBar(actions, width=160, mode="indeterminate")
         self.progress.grid(row=0, column=3, padx=8, pady=8)
         self.progress.set(0)
-        self.status = ctk.CTkLabel(actions, text="pronto", anchor="w")
+        self.status = ctk.CTkLabel(actions, text="ready", anchor="w")
         self.status.grid(row=0, column=4, padx=(8, 16), pady=8, sticky="w")
         actions.grid_columnconfigure(4, weight=1)
 
         self.tabs = ctk.CTkTabview(self)
         self.tabs.grid(row=3, column=0, sticky="nsew", **_SECTION_PAD)
-        resumo = self.tabs.add("Resumo")
-        relatorio = self.tabs.add("Relatório")
+        summary = self.tabs.add("Summary")
+        report = self.tabs.add("Report")
         log = self.tabs.add("Log")
-        for tab in (resumo, relatorio, log):
+        for tab in (summary, report, log):
             tab.grid_columnconfigure(0, weight=1)
             tab.grid_rowconfigure(1, weight=1)
 
-        self.resumo_box = ctk.CTkTextbox(resumo, wrap="word", font=ctk.CTkFont(family="Menlo", size=13))
-        self.resumo_box.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
-        self.resumo_box.insert("1.0", "Escolha a pasta de entrada e clique em Consolidar.")
-        self.resumo_box.configure(state="disabled")
+        self.summary_box = ctk.CTkTextbox(summary, wrap="word", font=ctk.CTkFont(family="Menlo", size=13))
+        self.summary_box.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
+        self.summary_box.insert("1.0", "Choose the input folder and click Consolidate.")
+        self.summary_box.configure(state="disabled")
 
-        self._build_report_table(relatorio)
+        self._build_report_table(report)
         self.log_box = ctk.CTkTextbox(log, wrap="none", font=ctk.CTkFont(family="Menlo", size=12))
         self.log_box.grid(row=0, column=0, sticky="nsew", padx=4, pady=(4, 0))
         self.log_box.configure(state="disabled")
-        ctk.CTkButton(log, text="Atualizar log", width=140, command=self._refresh_log).grid(
+        ctk.CTkButton(log, text="Refresh log", width=140, command=self._refresh_log).grid(
             row=1, column=0, sticky="e", padx=4, pady=4)
 
     def _build_report_table(self, parent: ctk.CTkFrame) -> None:
@@ -129,19 +130,19 @@ class App(ctk.CTk):
         background = "#2b2b2b" if dark else "#ffffff"
         heading = "#333333" if dark else "#e4e4e4"
         foreground = "#dce4ee" if dark else "#1a1a1a"
-        style.configure(_ESTILO_TABELA, background=background, fieldbackground=background,
+        style.configure(_TABLE_STYLE, background=background, fieldbackground=background,
                         foreground=foreground, rowheight=24, borderwidth=0)
-        style.configure(f"{_ESTILO_TABELA}.Heading", background=heading, foreground=foreground,
+        style.configure(f"{_TABLE_STYLE}.Heading", background=heading, foreground=foreground,
                         borderwidth=0)
         frame = ctk.CTkFrame(parent, fg_color="transparent")
         frame.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
         frame.grid_columnconfigure(0, weight=1)
         frame.grid_rowconfigure(0, weight=1)
         self.report_tree = ttk.Treeview(frame, columns=REPORT_COLUMNS, show="headings",
-                                        style=_ESTILO_TABELA)
+                                        style=_TABLE_STYLE)
         for column in REPORT_COLUMNS:
             self.report_tree.heading(column, text=column)
-            self.report_tree.column(column, width=_LARGURAS[column], anchor="w", stretch=True)
+            self.report_tree.column(column, width=_COLUMN_WIDTHS[column], anchor="w", stretch=True)
         scrollbar = ttk.Scrollbar(frame, orient="vertical", command=self.report_tree.yview)
         self.report_tree.configure(yscrollcommand=scrollbar.set)
         self.report_tree.grid(row=0, column=0, sticky="nsew")
@@ -153,13 +154,13 @@ class App(ctk.CTk):
         if error is None:
             self.base = config
             self._fill_fields(FormFields.from_config(config))
-            self.status.configure(text="config carregada")
+            self.status.configure(text="config loaded")
             return
-        self.status.configure(text="config inválida, usando padrões")
+        self.status.configure(text="invalid config, using defaults")
         if initial:
             self.base = controller.default_config()
             self._fill_fields(FormFields.from_config(self.base))
-        self._set_text(self.resumo_box, f"erro: {error}")
+        self._set_text(self.summary_box, f"error: {error}")
 
     def _reload_config(self) -> None:
         if self.running:
@@ -188,15 +189,15 @@ class App(ctk.CTk):
             remove_duplicates=bool(self.duplicates_var.get()),
         )
 
-    # ações
+    # actions
     def _browse(self, target: ctk.StringVar, kind: int) -> None:
         if kind == 0:
-            chosen = filedialog.askdirectory(title="Pasta de entrada", mustexist=True)
+            chosen = filedialog.askdirectory(title="Input folder", mustexist=True)
         else:
             chosen = filedialog.asksaveasfilename(
-                title="Arquivo de saída" if kind == 1 else "Arquivo de log",
+                title="Output file" if kind == 1 else "Log file",
                 defaultextension=".xlsx" if kind == 1 else ".log",
-                filetypes=[("Planilha", "*.xlsx")] if kind == 1 else [("Log", "*.log")],
+                filetypes=[("Spreadsheet", "*.xlsx")] if kind == 1 else [("Log", "*.log")],
             )
         if chosen:
             target.set(chosen)
@@ -205,16 +206,16 @@ class App(ctk.CTk):
         if self.running:
             return
         self.running = True
-        self.consolidar.configure(state="disabled")
-        self.status.configure(text="consolidando...")
+        self.consolidate_button.configure(state="disabled")
+        self.status.configure(text="running...")
         self.progress.start()
         threading.Thread(target=self._work, args=(self._fields(), self.base), daemon=True).start()
 
     def _work(self, fields: FormFields, base: RuntimeConfig) -> None:
         try:
             outcome = controller.run_from_fields(fields, base)
-        except Exception as exc:  # a janela nunca pode morrer por uma exceção
-            outcome = RunOutcome(ok=False, message=f"erro inesperado: {exc}")
+        except Exception as exc:  # the window must never die from an exception
+            outcome = RunOutcome(ok=False, message=f"unexpected error: {exc}")
         self.queue.put(outcome)
 
     def _poll_queue(self) -> None:
@@ -228,17 +229,17 @@ class App(ctk.CTk):
 
     def _show(self, outcome: RunOutcome) -> None:
         self.running = False
-        self.consolidar.configure(state="normal")
+        self.consolidate_button.configure(state="normal")
         self.progress.stop()
         self.progress.set(0)
-        self.status.configure(text="concluído" if outcome.ok else "falhou")
+        self.status.configure(text="done" if outcome.ok else "failed")
         message = outcome.message
         if outcome.warnings:
-            message = message + "\n" + "\n".join(f"aviso: {warning}" for warning in outcome.warnings)
-        self._set_text(self.resumo_box, message)
+            message = message + "\n" + "\n".join(f"warning: {warning}" for warning in outcome.warnings)
+        self._set_text(self.summary_box, message)
         self._fill_report(outcome.report)
         self._set_text(self.log_box, "\n".join(outcome.log_tail))
-        self.tabs.set("Resumo")
+        self.tabs.set("Summary")
 
     def _fill_report(self, report: pd.DataFrame | None) -> None:
         self.report_tree.delete(*self.report_tree.get_children())
@@ -264,7 +265,7 @@ class App(ctk.CTk):
             else:
                 subprocess.Popen(["xdg-open", str(folder)])
         except OSError as exc:
-            self.status.configure(text=f"não foi possível abrir: {exc}")
+            self.status.configure(text=f"could not open: {exc}")
 
     @staticmethod
     def _set_text(box: ctk.CTkTextbox, text: str) -> None:
@@ -275,8 +276,8 @@ class App(ctk.CTk):
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Abra a janela da interface gráfica."""
-    parser = argparse.ArgumentParser(description="Interface gráfica do Excel Consolidator.")
+    """Open the graphical interface window."""
+    parser = argparse.ArgumentParser(description="Excel Consolidator graphical interface.")
     parser.add_argument("--config", type=Path, default=None)
     args = parser.parse_args(argv)
     ctk.set_appearance_mode("dark")

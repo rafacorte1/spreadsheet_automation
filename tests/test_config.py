@@ -1,4 +1,4 @@
-"""Configuração com arquivos sintéticos e diretórios temporários."""
+"""Configuration with synthetic files and temporary directories."""
 from __future__ import annotations
 
 from dataclasses import FrozenInstanceError
@@ -23,8 +23,8 @@ def write_config(tmp_path: Path, text: str) -> Path:
 def test_defaults(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
     config = load_config()
-    assert config == RuntimeConfig(Path("data/input"), Path("data/output/consolidado.xlsx"),
-                                   Path("data/output/consolidacao.log"), QualityOptions())
+    assert config == RuntimeConfig(Path("data/input"), Path("data/output/consolidated.xlsx"),
+                                   Path("data/output/consolidation.log"), QualityOptions())
     assert (DEFAULT_INPUT, DEFAULT_OUTPUT, DEFAULT_LOG_FILE) == (
         config.input_dir, config.output_path, config.log_file)
     with pytest.raises(FrozenInstanceError):
@@ -35,27 +35,27 @@ def test_complete(tmp_path: Path) -> None:
     path = write_config(tmp_path, '''input = "in"
 output = "out.xlsx"
 log_file = "run.log"
-[qualidade]
-trim_texto = true
-normalizar_numeros = true
-datas_iso = true
-remover_duplicados = true
-chave = ["produto", "data"]
+[quality]
+trim_text = true
+normalize_numbers = true
+dates_iso = true
+remove_duplicates = true
+key = ["product", "date"]
 ''')
     assert load_config(path) == RuntimeConfig(
         tmp_path / "in", tmp_path / "out.xlsx", tmp_path / "run.log",
-        QualityOptions(True, True, True, ("produto", "data"), True))
+        QualityOptions(True, True, True, ("product", "date"), True))
 
 
 def test_only_input(tmp_path: Path) -> None:
-    config = load_config(write_config(tmp_path, 'input = "dados"'))
-    assert config == RuntimeConfig(tmp_path / "dados", DEFAULT_OUTPUT, DEFAULT_LOG_FILE, QualityOptions())
+    config = load_config(write_config(tmp_path, 'input = "data_dir"'))
+    assert config == RuntimeConfig(tmp_path / "data_dir", DEFAULT_OUTPUT, DEFAULT_LOG_FILE, QualityOptions())
 
 
 @pytest.mark.parametrize("text, options", [
-    ('[qualidade]\nchave = ["a"]\ntrim_texto = true', QualityOptions(trim_text=True, key=("a",))),
-    ('[qualidade]\nchave = []', QualityOptions()),
-    ('[qualidade]', QualityOptions()),
+    ('[quality]\nkey = ["a"]\ntrim_text = true', QualityOptions(trim_text=True, key=("a",))),
+    ('[quality]\nkey = []', QualityOptions()),
+    ('[quality]', QualityOptions()),
 ])
 def test_partial_quality(tmp_path: Path, text: str, options: QualityOptions) -> None:
     assert load_config(write_config(tmp_path, text)).options == options
@@ -65,15 +65,15 @@ def test_partial_quality(tmp_path: Path, text: str, options: QualityOptions) -> 
     ('input = 5', 'input', 'str', 'int'),
     ('output = false', 'output', 'str', 'bool'),
     ('log_file = []', 'log_file', 'str', 'list'),
-    ('input = ""', 'input', 'str não vazia', 'str'),
-    ('[qualidade]\ntrim_texto = "sim"', 'trim_texto', 'bool', 'str'),
-    ('[qualidade]\nnormalizar_numeros = 1', 'normalizar_numeros', 'bool', 'int'),
-    ('[qualidade]\ndatas_iso = 0', 'datas_iso', 'bool', 'int'),
-    ('[qualidade]\nremover_duplicados = "false"', 'remover_duplicados', 'bool', 'str'),
-    ('[qualidade]\nchave = "produto"', 'chave', 'lista', 'str'),
-    ('[qualidade]\nchave = [1]', 'chave', 'str', 'int'),
-    ('[qualidade]\nchave = [""]', 'chave', 'str não vazia', 'str'),
-    ('qualidade = false', 'qualidade', 'tabela', 'bool'),
+    ('input = ""', 'input', 'non-empty str', 'str'),
+    ('[quality]\ntrim_text = "yes"', 'trim_text', 'bool', 'str'),
+    ('[quality]\nnormalize_numbers = 1', 'normalize_numbers', 'bool', 'int'),
+    ('[quality]\ndates_iso = 0', 'dates_iso', 'bool', 'int'),
+    ('[quality]\nremove_duplicates = "false"', 'remove_duplicates', 'bool', 'str'),
+    ('[quality]\nkey = "product"', 'key', 'list', 'str'),
+    ('[quality]\nkey = [1]', 'key', 'str', 'int'),
+    ('[quality]\nkey = [""]', 'key', 'non-empty str', 'str'),
+    ('quality = false', 'quality', 'table', 'bool'),
 ])
 def test_invalid_types(tmp_path: Path, text: str, key: str, expected: str, received: str) -> None:
     with pytest.raises(ConsolidationError) as error:
@@ -81,13 +81,13 @@ def test_invalid_types(tmp_path: Path, text: str, key: str, expected: str, recei
     message = str(error.value)
     assert key in message
     assert expected in message
-    assert f"recebido {received}" in message
+    assert f"got {received}" in message
 
 
 @pytest.mark.parametrize("text, keys", [
     ('typo = 1\nother = 2', ('typo', 'other')),
-    ('[qualidade]\ntrim_text = true', ('qualidade.trim_text',)),
-    ('typo = 1\n[qualidade]\nother = true', ('typo', 'qualidade.other')),
+    ('[quality]\ntrim_txt = true', ('quality.trim_txt',)),
+    ('typo = 1\n[quality]\nother = true', ('typo', 'quality.other')),
 ])
 def test_unknown_keys(tmp_path: Path, text: str, keys: tuple[str, ...]) -> None:
     with pytest.raises(ConsolidationError) as error:
@@ -124,13 +124,13 @@ def test_invalid_encoding(tmp_path: Path) -> None:
 def test_relative_to_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     sub = tmp_path / "sub"
     sub.mkdir()
-    write_config(sub, 'input = "dados"')
+    write_config(sub, 'input = "data_dir"')
     monkeypatch.chdir(tmp_path)
-    assert load_config(Path("sub/settings.toml")).input_dir == sub / "dados"
+    assert load_config(Path("sub/settings.toml")).input_dir == sub / "data_dir"
 
 
 def test_absolute_paths(tmp_path: Path) -> None:
-    absolute = tmp_path / "dados"
+    absolute = tmp_path / "data_dir"
     path = write_config(tmp_path, f'input = "{absolute}"\noutput = "{absolute}"\nlog_file = "{absolute}"')
     config = load_config(path)
     assert (config.input_dir, config.output_path, config.log_file) == (absolute,) * 3
@@ -143,7 +143,7 @@ def test_cwd_discovery(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_overrides(tmp_path: Path) -> None:
-    original = load_config(write_config(tmp_path, 'input = "file"\n[qualidade]\ntrim_texto = true'))
+    original = load_config(write_config(tmp_path, 'input = "file"\n[quality]\ntrim_text = true'))
     result = apply_overrides(original, input_dir=Path("cli"), output_path=Path("cli.xlsx"),
                              log_file=Path("cli.log"), trim_text=False, normalize_numbers=True,
                              dates_iso=True, key=("a",), remove_duplicates=True)

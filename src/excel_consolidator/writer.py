@@ -1,4 +1,4 @@
-"""Escrita do resultado com substituição atômica."""
+"""Write the result with atomic replacement."""
 from __future__ import annotations
 
 import os
@@ -10,11 +10,11 @@ import pandas as pd
 from .errors import ConsolidationError
 from .report import REPORT_COLUMNS, REPORT_SHEET
 
-OUTPUT_SHEET: str = "consolidado"
+OUTPUT_SHEET: str = "consolidated"
 
 
 def write_atomic(frame: pd.DataFrame, output_path: Path, report: pd.DataFrame | None = None) -> None:
-    """Grave um temporário completo antes de substituir o destino."""
+    """Write a complete temporary file before replacing the target."""
     temporary: Path | None = None
     try:
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -29,4 +29,4 @@ def write_atomic(frame: pd.DataFrame, output_path: Path, report: pd.DataFrame | 
     except Exception as exc:
         if temporary is not None:
             temporary.unlink(missing_ok=True)
-        raise ConsolidationError(f"Não foi possível escrever {output_path}: {exc}") from exc
+        raise ConsolidationError(f"could not write {output_path}: {exc}") from exc

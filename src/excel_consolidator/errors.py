@@ -2,4 +2,4 @@ from __future__ import annotations
 
 
 class ConsolidationError(Exception):
-    """Erro de entrada/validação com mensagem exibível ao usuário."""
+    """Input or validation error with a message meant for the user."""
