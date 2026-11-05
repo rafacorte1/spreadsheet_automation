@@ -7,6 +7,8 @@ name = "excel-consolidator"
 version = "0.1.0"
 description = "Consolidate .xlsx files into a single workbook with data-quality reporting, TOML configuration and a desktop GUI."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 authors = [{ name = "Rafael Corte" }]
 keywords = ["excel", "xlsx", "etl", "data-quality", "pandas", "openpyxl", "cli", "customtkinter"]

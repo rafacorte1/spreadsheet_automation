@@ -5,6 +5,7 @@ Consolidate every `.xlsx` file in a folder into one workbook, keep the origin of
 [![CI](https://github.com/rafacorte1/spreadsheet_automation/actions/workflows/ci.yml/badge.svg)](https://github.com/rafacorte1/spreadsheet_automation/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![tests](https://img.shields.io/badge/tests-182%20passed-brightgreen)
+![license](https://img.shields.io/badge/license-MIT-blue)
 
 ## What it does
 
@@ -219,8 +220,9 @@ python -m excel_consolidator.ui --config path/to/config.toml
 
 The work runs in a worker thread and the result comes back through a `queue.Queue` polled with `after`, so the window does not freeze and no widget is touched from another thread. The GUI writes the log file at the configured path, exactly like the CLI. An unexpected exception in the worker becomes an error outcome shown in the window instead of a silent crash.
 
-<!-- screenshot: docs/screenshot.png -->
-The Summary tab after a run with the sample files.
+![Excel Consolidator GUI](docs/screenshot.png)
+
+The window on open: input folder, output file and log file loaded from `config.toml`, the four quality switches, the key field and the three result tabs.
 
 ## Design decisions
 
@@ -296,6 +298,10 @@ CI runs the same command on Ubuntu for Python 3.11, 3.12, 3.13 and 3.14.
 - Load test with large real spreadsheets to confirm memory behaviour and decide whether chunked reading is needed.
 - Packaging (`.app` bundle, double-click launcher) is deferred by the product owner and not started.
 - Revisit output permissions only if another local account needs to read the report.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
 
 ## Docs index
 
