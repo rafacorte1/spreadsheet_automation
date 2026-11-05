@@ -1,6 +1,6 @@
 # Excel Consolidator
 
-Consolida verticalmente arquivos `.xlsx` de uma pasta, preservando todas as linhas de dados lidas e adicionando `arquivo_origem` com apenas o nome de cada arquivo. Os arquivos são processados em ordem alfabética; as colunas seguem a ordem do primeiro arquivo. As entradas não são modificadas.
+Consolida verticalmente arquivos `.xlsx` de uma pasta, preservando por padrão todas as linhas de dados lidas e adicionando `arquivo_origem` com apenas o nome de cada arquivo. Os arquivos são processados em ordem alfabética; as colunas seguem a ordem do primeiro arquivo. As entradas não são modificadas.
 
 Requer Python >= 3.11. Dependências: pandas e openpyxl; pytest para testes.
 
@@ -34,6 +34,7 @@ Os argumentos são opcionais. Os padrões são `data/input` e `data/output/conso
 arquivos: 2
 linhas: 3
 saida: /caminho/do/projeto/data/output/consolidado.xlsx
+qualidade: nulos=0 duplicados=0 removidos=0 alterados=0
 ```
 
 Em caso de erro de consolidação, a CLI escreve `erro: <mensagem>` em stderr e termina com código 1, sem traceback. Argumentos inválidos terminam com código 2. Sucesso retorna 0.
@@ -46,11 +47,37 @@ Para executar os testes:
 
 A leitura usa openpyxl para detectar cabeçalhos duplicados ou em branco antes que sejam transformados por inferência de nomes. A comparação dos cabeçalhos é literal, sem normalização; os arquivos precisam ter os mesmos nomes de colunas, ainda que em ordens diferentes. A coluna `arquivo_origem` é reservada. Entradas vazias, sem registros, corrompidas ou incompatíveis são rejeitadas. Arquivos `~$*` e subpastas são ignorados.
 
-A consolidação preserva os valores retornados pelo reader, sem conversão de tipos, arredondamento ou deduplicação. O resultado contém uma única aba `consolidado`, com cabeçalho na linha 1 e sem índice do pandas. A escrita cria um temporário no diretório do destino, fecha o arquivo completo e usa `os.replace` para substituição atômica. Falhas de leitura ou escrita preservam o resultado anterior; temporários de uma escrita que falhou são removidos.
+Sem flags de qualidade, a consolidação preserva os valores retornados pelo reader, sem conversão de tipos, arredondamento ou deduplicação. A CLI gera as abas `consolidado` e `relatorio`, nessa ordem, com cabeçalhos na linha 1 e sem índice do pandas. A função `write_atomic(frame, output)` continua gerando apenas `consolidado` quando não recebe relatório. A escrita cria um temporário no diretório do destino, fecha o arquivo completo e usa `os.replace` para substituição atômica. Falhas de leitura ou escrita preservam o resultado anterior; temporários de uma escrita que falhou são removidos.
 
-Limitações do Sprint 1:
+Limitações:
 
 - Apenas `.xlsx` e a primeira aba de cada arquivo; sem `.xls` ou `.csv`.
 - Fórmulas sem valor em cache são lidas como vazias (`data_only=True`); fórmulas e formatação não são preservadas na saída.
-- Sem normalização, deduplicação ou validação de valores.
+- Sem casefold ou remoção de acentos; cabeçalhos continuam com comparação literal.
+- Sem deduplicação por semelhança; somente igualdade de valores ou da chave.
+- `"007"` vira `7` com `--normalizar-numeros`, perdendo zeros à esquerda.
 - Sem agendamento.
+
+Qualidade de dados (todas as flags são opcionais e desligadas por padrão):
+
+- `--trim-texto`: remove espaços das extremidades de textos.
+- `--normalizar-numeros`: converte textos numéricos brasileiros, por exemplo `" 1.234,56 "` em `1234.56`.
+- `--datas-iso`: converte datas reconhecidas em valor de data ou de data e hora (formatos `DD/MM/AAAA`, `AAAA-MM-DD`, com hora opcional `HH:MM:SS`).
+- `--chave COL1,COL2`: compara duplicados pelas colunas informadas; espaços e entradas vazias são removidos. Uma chave vazia ou com coluna desconhecida é rejeitada.
+- `--remover-duplicados`: remove ocorrências posteriores à primeira, na ordem de arquivo e linha. Sem chave, compara todas as colunas de dados, excluindo `arquivo_origem`.
+
+```bash
+python -m excel_consolidator --input data/input --output data/output/consolidado.xlsx \
+  --trim-texto --normalizar-numeros --remover-duplicados --chave nome,valor
+```
+
+As regras são aplicadas na ordem trim, números e datas. Um valor que não pode ser convertido fica intocado pela conversão; a falha de uma regra só é contada quando nenhuma conversão (`--normalizar-numeros` ou `--datas-iso`) converteu aquela célula — um texto que apenas perdeu espaços com `--trim-texto` continua contando falha. `alterados` soma operações de alteração por regra; uma célula pode contribuir mais de uma vez.
+
+A aba `relatorio` tem exatamente as colunas `secao, arquivo, coluna, metrica, valor`. As seções aparecem nesta ordem, com arquivos em ordem alfabética e colunas na ordem de cada planilha:
+
+- `resumo`: `linhas_lidas` por arquivo, antes de remover duplicados.
+- `nulos`: `nulos` por coluna de dados (inclusive zero), considerando `None`, texto vazio ou só espaços, após padronização e antes de remover duplicados. Nunca inclui `arquivo_origem`.
+- `padronizacao`: `alterados_<regra>` e `falhas_<regra>` por coluna, inclusive zero, somente para regras ativas (`trim_texto`, `normalizar_numeros`, `datas_iso`).
+- `duplicados`: `modo` (`linhas_identicas` ou `chave:a,b`), `linhas_duplicadas` e `linhas_removidas`. Campos de arquivo e coluna ficam vazios.
+
+`linhas` no stdout conta as linhas da saída final, após eventual remoção; `linhas_lidas` conta a entrada. A linha `qualidade:` soma nulos, duplicados posteriores à primeira, removidos e alterações por regra. A detecção de duplicados e o relatório funcionam mesmo sem flags; por isso dados com nulos ou duplicados podem apresentar contadores diferentes de zero sem solicitar mudanças.

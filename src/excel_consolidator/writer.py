@@ -8,11 +8,12 @@ import tempfile
 import pandas as pd
 
 from .errors import ConsolidationError
+from .report import REPORT_COLUMNS, REPORT_SHEET
 
 OUTPUT_SHEET: str = "consolidado"
 
 
-def write_atomic(frame: pd.DataFrame, output_path: Path) -> None:
+def write_atomic(frame: pd.DataFrame, output_path: Path, report: pd.DataFrame | None = None) -> None:
     """Grave um temporário completo antes de substituir o destino."""
     temporary: Path | None = None
     try:
@@ -22,6 +23,8 @@ def write_atomic(frame: pd.DataFrame, output_path: Path) -> None:
         os.close(descriptor)
         with pd.ExcelWriter(temporary, engine="openpyxl") as writer:
             frame.to_excel(writer, sheet_name=OUTPUT_SHEET, index=False)
+            if report is not None:
+                report.loc[:, list(REPORT_COLUMNS)].to_excel(writer, sheet_name=REPORT_SHEET, index=False)
         os.replace(temporary, output_path)
     except Exception as exc:
         if temporary is not None:

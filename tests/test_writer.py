@@ -57,3 +57,31 @@ def test_directory_creation_failure_is_controlled(tmp_path):
     with pytest.raises(ConsolidationError, match=str(output)):
         writer.write_atomic(pd.DataFrame({"A": [1]}), output)
     assert parent.read_bytes() == b"existing"
+
+
+def test_report_columns_order_and_failure_preserves_output(tmp_path, monkeypatch):
+    from excel_consolidator.report import REPORT_COLUMNS
+    output = tmp_path / "result.xlsx"
+    frame = pd.DataFrame({"A": [1]})
+    report = pd.DataFrame([[0, "nulos", "a.xlsx", "A", "nulos"]],
+                          columns=["valor", "secao", "arquivo", "coluna", "metrica"])
+    writer.write_atomic(frame, output, report)
+    workbook = load_workbook(output)
+    try:
+        assert workbook.sheetnames == ["consolidado", "relatorio"]
+        assert list(workbook["relatorio"].values) == [REPORT_COLUMNS, ("nulos", "a.xlsx", "A", "nulos", 0)]
+    finally:
+        workbook.close()
+    before = output.read_bytes()
+    original = pd.DataFrame.to_excel
+
+    def fail_report(self, *args, **kwargs):
+        if kwargs.get("sheet_name") == "relatorio":
+            raise OSError("falha no relatório")
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(pd.DataFrame, "to_excel", fail_report)
+    with pytest.raises(ConsolidationError, match="falha no relatório"):
+        writer.write_atomic(frame, output, report)
+    assert output.read_bytes() == before
+    assert list(tmp_path.iterdir()) == [output]

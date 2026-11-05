@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from .quality import QualityOptions, build_duplicate_report, find_duplicates, standardize
+from .report import build_report
 from .reader import (
     ORIGIN_COLUMN, ConsolidationError, SheetData, discover_input_files,
     read_sheet, validate_headers,
@@ -18,6 +20,8 @@ class ConsolidationResult:
 
     files: tuple[SheetData, ...]
     frame: pd.DataFrame
+    report: pd.DataFrame
+    options: QualityOptions
 
     @property
     def rows(self) -> int:
@@ -25,13 +29,22 @@ class ConsolidationResult:
         return len(self.frame)
 
 
-def consolidate(input_dir: Path) -> ConsolidationResult:
+def consolidate(input_dir: Path, options: QualityOptions | None = None) -> ConsolidationResult:
     """Valide todas as entradas e concatene preservando valores e ordem."""
+    options = options if options is not None else QualityOptions()
     paths = discover_input_files(input_dir)
     if not paths:
         raise ConsolidationError(f"nenhum arquivo .xlsx em {input_dir}")
     files = tuple(read_sheet(path) for path in paths)
+    stats = {}
+    if options.any_standardization:
+        results = tuple(standardize(sheet, options) for sheet in files)
+        files = tuple(result.sheet for result in results)
+        stats = {result.sheet.path.name: result.stats for result in results}
     reference = files[0]
+    unknown = [column for column in options.key if column not in reference.columns]
+    if unknown:
+        raise ConsolidationError(f"chave {options.key}: colunas desconhecidas {unknown} em {reference.path}")
     frames: list[pd.DataFrame] = []
     for sheet in files:
         if sheet is not reference:
@@ -41,4 +54,9 @@ def consolidate(input_dir: Path) -> ConsolidationResult:
         frame = frame.loc[:, list(reference.columns)].copy()
         frame[ORIGIN_COLUMN] = sheet.path.name
         frames.append(frame)
-    return ConsolidationResult(files, pd.concat(frames, ignore_index=True))
+    frame = pd.concat(frames, ignore_index=True)
+    duplicates = build_duplicate_report(frame, options)
+    report = build_report(files, stats, duplicates, options)
+    if options.remove_duplicates:
+        frame = frame.loc[~find_duplicates(frame, options.key or reference.columns)].reset_index(drop=True)
+    return ConsolidationResult(files, frame, report, options)

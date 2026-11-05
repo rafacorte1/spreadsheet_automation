@@ -42,3 +42,17 @@ def test_incompatible_columns(tmp_path, make_xlsx):
     make_xlsx(tmp_path / "b.xlsx", [["B"], [2]])
     with pytest.raises(ConsolidationError, match="faltantes"):
         consolidate(tmp_path)
+
+
+def test_key_validation_and_first_occurrence(tmp_path, make_xlsx):
+    from excel_consolidator.quality import QualityOptions
+    make_xlsx(tmp_path / "a.xlsx", [["id", "valor"], [1, "primeiro"], [2, None]])
+    make_xlsx(tmp_path / "z.xlsx", [["valor", "id"], ["segundo", 1]])
+    with pytest.raises(ConsolidationError, match="desconhecida.*a.xlsx"):
+        consolidate(tmp_path, QualityOptions(key=("desconhecida",)))
+    raw = consolidate(tmp_path)
+    assert raw.rows == 3
+    result = consolidate(tmp_path, QualityOptions(key=("id",), remove_duplicates=True))
+    assert result.frame.values.tolist() == [[1, "primeiro", "a.xlsx"], [2, None, "a.xlsx"]]
+    assert result.report[result.report.metrica == "linhas_lidas"].valor.tolist() == [2, 1]
+    assert result.report[result.report.metrica == "modo"].valor.tolist() == ["chave:id"]
