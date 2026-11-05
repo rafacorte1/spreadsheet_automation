@@ -1,6 +1,6 @@
 # Codex spec: Sprint 2, Stage D (report, integration and CLI)
 
-Repo root. Sprint 1 (commit `e0e5d36`) and Stage C (`quality.py`, 95 tests) are approved. Integrate data quality into the consolidation and the CLI.
+Repo root. Sprint 1 (commit `a4defda`) and Stage C (`quality.py`, 95 tests) are approved. Integrate data quality into the consolidation and the CLI.
 
 ## DO NOT
 

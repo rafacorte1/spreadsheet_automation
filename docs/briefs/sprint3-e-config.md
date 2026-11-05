@@ -1,6 +1,6 @@
 # Codex spec: Sprint 3, Stage E (TOML configuration)
 
-Repo root, branch `main` (`aed12bd`). Sprints 1 and 2 approved, 115 tests passing.
+Repo root, branch `main` (`accf997`). Sprints 1 and 2 approved, 115 tests passing.
 
 GOAL: add `config.py` with validated `config.toml` loading, precedence CLI over file over default, and tests. **No** logging, CLI or README change in this stage.
 

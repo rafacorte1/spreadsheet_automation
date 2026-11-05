@@ -14,10 +14,10 @@ A Python CLI that consolidates `.xlsx` spreadsheets from a folder vertically, ke
 
 | Sprint | Scope | Status | Commit |
 |---|---|---|---|
-| 1 | reading, structural validation, atomic export | approved | `e0e5d36` |
-| 2 | data quality: nulls, duplicates, standardisation, report | approved | `aed12bd` |
-| 3 | TOML configuration plus rotating log (no scheduling) | approved | `d15a02e` |
-| 4 | customtkinter interface (Summary / Report / Log) | approved | `343f06c` |
+| 1 | reading, structural validation, atomic export | approved | `a4defda` |
+| 2 | data quality: nulls, duplicates, standardisation, report | approved | `accf997` |
+| 3 | TOML configuration plus rotating log (no scheduling) | approved | `06dc591` |
+| 4 | customtkinter interface (Summary / Report / Log) | approved | `1b21f26` |
 | | key validated only when used | approved | see `git log` |
 | | packaging (`.app`, double-click launcher) | deferred by the PO | |
 

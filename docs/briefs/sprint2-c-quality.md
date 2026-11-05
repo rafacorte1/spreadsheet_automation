@@ -1,6 +1,6 @@
 # Codex spec: Sprint 2, Stage C (pure quality module plus tests)
 
-Repo root. Sprint 1 is approved and committed (`e0e5d36`); `reader.py`, `consolidator.py`, `writer.py` and `cli.py` exist and must not be touched in this stage.
+Repo root. Sprint 1 is approved and committed (`a4defda`); `reader.py`, `consolidator.py`, `writer.py` and `cli.py` exist and must not be touched in this stage.
 
 GOAL: create `quality.py` with optional standardisation (change and failure counts per column) and duplicate detection, plus tests. No CLI, consolidator, writer or README change in this stage.
 
