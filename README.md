@@ -9,13 +9,14 @@ Instalação a partir da raiz do repositório:
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -e ".[dev,ui]"
 ```
 
 Estrutura de pastas:
 
 ```text
 src/excel_consolidator/  # reader, consolidator, writer e CLI
+src/excel_consolidator/ui/  # interface gráfica (controller sem tkinter + app customtkinter)
 tests/                  # testes com dados sintéticos
 data/input/             # arquivos de entrada
 data/output/            # consolidado.xlsx
@@ -99,8 +100,10 @@ normalizar_numeros = false
 datas_iso = false
 # Remoção opcional e colunas usadas como chave.
 remover_duplicados = false
-chave = ["produto", "data"]
+chave = ["produto"]
 ```
+
+A chave precisa existir nas planilhas mesmo com `remover_duplicados = false`: a validação roda antes da remoção e rejeita colunas desconhecidas. Ajuste-a às colunas reais das entradas.
 
 A precedência é CLI explícita > arquivo > defaults. Caminhos definidos no TOML são relativos ao diretório do arquivo; caminhos da CLI e defaults são relativos ao diretório atual. Sem arquivo, as flags ficam desligadas e a chave vazia. Ajuste a chave do exemplo às colunas das entradas.
 
@@ -122,6 +125,22 @@ Exemplo real com entrada sintética:
 
 Não há agendamento: a automação é disparada por comando. O núcleo `run_config`, em `excel_consolidator.cli`, recebe um `RuntimeConfig` e permanece importável e silencioso para uma interface gráfica futura. Ele não configura logs; essa responsabilidade pertence à CLI.
 
+## Interface gráfica
+
+`customtkinter` é opcional (`pip install -e ".[ui]"`). A janela usa o mesmo núcleo da CLI:
+
+```bash
+python -m excel_consolidator.ui
+python -m excel_consolidator.ui --config caminho/config.toml
+```
+
+- Campos: pasta de entrada, arquivo de saída e arquivo de log (os três com "Procurar"), os quatro interruptores de qualidade e a chave.
+- Abas: `Resumo` (as quatro linhas do contrato da CLI), `Relatório` (a tabela `secao, arquivo, coluna, metrica, valor`) e `Log` (rabo do arquivo, com botão para atualizar).
+- `config.toml` do diretório atual é carregado ao abrir; "Recarregar config" relê o arquivo. Arquivo inválido mostra o erro na aba Resumo e mantém os defaults.
+- A execução roda em thread; o resumo, o relatório e o log chegam à janela sem congelá-la. Erro de consolidação aparece como `erro: <mensagem>`, sem traceback, e não substitui a saída anterior.
+- A interface grava log em arquivo, no caminho configurado, exatamente como a CLI.
+- A lógica testável vive em `ui/controller.py`, que não importa tkinter; `ui/app.py` só monta widgets. Sem display, os testes da janela são pulados, e os do controller continuam rodando.
+
 ## Retomar o projeto
 
-`docs/HANDOFF.md` tem o estado dos sprints, as decisões com o porquê, as armadilhas conhecidas e o próximo passo (interface customtkinter). `docs/briefs/` guarda os briefs enviados ao Codex e `docs/verificacao/` os scripts de verificação independente.
+`docs/HANDOFF.md` tem o estado dos sprints, as decisões com o porquê, as armadilhas conhecidas e o próximo passo. `docs/briefs/` guarda os briefs por sprint e `docs/verificacao/` os scripts de verificação independente.
