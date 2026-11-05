@@ -121,3 +121,7 @@ Exemplo real com entrada sintética:
 ```
 
 Não há agendamento: a automação é disparada por comando. O núcleo `run_config`, em `excel_consolidator.cli`, recebe um `RuntimeConfig` e permanece importável e silencioso para uma interface gráfica futura. Ele não configura logs; essa responsabilidade pertence à CLI.
+
+## Retomar o projeto
+
+`docs/HANDOFF.md` tem o estado dos sprints, as decisões com o porquê, as armadilhas conhecidas e o próximo passo (interface customtkinter). `docs/briefs/` guarda os briefs enviados ao Codex e `docs/verificacao/` os scripts de verificação independente.
