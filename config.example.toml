@@ -10,4 +10,4 @@ normalizar_numeros = false
 datas_iso = false
 # Remoção opcional e colunas usadas como chave.
 remover_duplicados = false
-chave = ["produto", "data"]
+chave = ["produto"]
