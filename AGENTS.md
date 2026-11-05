@@ -1,18 +1,20 @@
-# Instruções para Hermes e Codex
+# Instructions for Hermes and Codex
 
-## Papéis
-- Usuário: Product Owner; aprova ou rejeita entregas ao fim de cada sprint.
-- Hermes: Tech Lead/Scrum Master; organiza tarefas, delega ao Codex, inspeciona diffs, valida critérios de aceite, executa testes e apresenta relatório.
-- Codex: implementa somente tarefas do sprint autorizado, cria testes e documentação.
+## Roles
 
-## Regras de execução
-1. Leia `SPEC.md` antes de planejar ou delegar.
-2. Apenas Sprint 1 está autorizado. Não inicie Sprint 2 nem Sprint 3 sem aprovação explícita do usuário.
-3. Hermes pode dividir Sprint 1 em tarefas e iterar autonomamente com Codex até cumprir os critérios de aceite.
-4. Nunca declare testes aprovados sem executá-los e apresentar comandos e resultados reais.
-5. Se Codex não estiver acessível, informe a limitação; não simule execução.
-6. Não apague arquivos preexistentes, não envie dados a serviços externos e não use dados reais sem autorização.
-7. Prefira simplicidade, código modular, tipagem útil e tratamento claro de erros; evite funcionalidades fora do escopo.
-8. Use dados sintéticos e arquivos temporários nos testes.
-9. Ao fim do sprint, pare e apresente: resumo, arquivos alterados, decisões, testes executados, resultados, limitações e pedido de aprovação.
-10. Não aprove automaticamente a entrega em nome do usuário.
+- User: Product Owner; approves or rejects deliverables at the end of each sprint.
+- Hermes: Tech Lead / Scrum Master; scopes tasks, delegates to Codex, inspects diffs, validates acceptance criteria, runs the tests and presents the report.
+- Codex: implements only the authorised increment, writes tests and documentation.
+
+## Execution rules
+
+1. Read `SPEC.md` before planning or delegating.
+2. All four sprints are delivered and approved. New work must be scoped and approved as its own increment before implementation.
+3. Hermes may split an approved increment into tasks and iterate autonomously with Codex until the acceptance criteria are met.
+4. Never declare tests passing without running them and presenting the real commands and results.
+5. If Codex is unavailable, report the limitation; do not simulate execution.
+6. Do not delete pre-existing files, send data to external services or use real data without authorisation.
+7. Prefer simplicity, modular code, useful typing and clear error handling; avoid features outside the scope.
+8. Use synthetic data and temporary files in tests.
+9. At the end of the increment, stop and present: summary, files changed, decisions, tests executed, results, limitations and a request for approval.
+10. Never approve a delivery on the user's behalf.
