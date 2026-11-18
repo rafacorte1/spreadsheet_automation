@@ -2,6 +2,7 @@
 input = "data/input"
 output = "data/output/consolidated.xlsx"
 log_file = "data/output/consolidation.log"
+# formats = ["xlsx", "xls", "csv"]
 
 [quality]
 # Optional standardisation.
@@ -11,3 +12,8 @@ dates_iso = false
 # Optional duplicate removal and the columns used as key.
 remove_duplicates = false
 key = ["product"]
+
+# Omit both CSV settings to detect them and log the choices.
+# [csv]
+# encoding = "utf-8"
+# delimiter = ";"

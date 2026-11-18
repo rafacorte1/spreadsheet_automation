@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime
 import math
 import re
@@ -127,7 +127,7 @@ def standardize(sheet: SheetData, options: QualityOptions) -> StandardizationRes
                     failures[column][rule] = failures[column].get(rule, 0) + 1
             values.append(value)
         rows.append(tuple(values))
-    result_sheet = SheetData(sheet.path, sheet.columns, tuple(rows))
+    result_sheet = replace(sheet, rows=tuple(rows))
     stats = {
         column: ColumnStats(changes[column], failures[column], rule_changes[column])
         for column in sheet.columns

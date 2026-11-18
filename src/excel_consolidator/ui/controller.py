@@ -1,7 +1,7 @@
 """Interface control layer: validates fields, runs and summarizes without a screen."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import pandas as pd
@@ -11,6 +11,7 @@ from ..cli import run_config
 from ..config import DEFAULT_INPUT, DEFAULT_LOG_FILE, DEFAULT_OUTPUT, RuntimeConfig, apply_overrides, load_config
 from ..errors import ConsolidationError
 from ..quality import QualityOptions
+from ..reader_options import INPUT_FORMATS, ReaderOptions
 from ..report import QualitySummary, summarize
 
 DEFAULT_LOG_TAIL_LINES: int = 40
@@ -39,11 +40,15 @@ class FormFields:
     remove_duplicates: bool = False
     key: str = ""
     log_file: str = ""
+    formats: str = ", ".join(INPUT_FORMATS)
+    csv_encoding: str = ""
+    csv_delimiter: str = ""
 
     @classmethod
     def from_config(cls, config: RuntimeConfig) -> "FormFields":
         """Fill the fields from an already resolved configuration."""
         options = config.options
+        reader = config.reader_options
         return cls(
             input_dir=str(config.input_dir),
             output_path=str(config.output_path),
@@ -53,6 +58,9 @@ class FormFields:
             remove_duplicates=options.remove_duplicates,
             key=", ".join(options.key),
             log_file=str(config.log_file),
+            formats=", ".join(reader.formats),
+            csv_encoding=reader.csv_encoding or "",
+            csv_delimiter=r"\t" if reader.csv_delimiter == "\t" else reader.csv_delimiter or "",
         )
 
 
@@ -81,8 +89,11 @@ def build_config(fields: FormFields, base: RuntimeConfig | None = None) -> Runti
     if not output_path:
         raise ConsolidationError("the output file is required")
     log_file = fields.log_file.strip()
+    formats = split_key(fields.formats) or INPUT_FORMATS
+    delimiter = "\t" if fields.csv_delimiter == r"\t" else fields.csv_delimiter or None
+    reader_options = ReaderOptions(formats, fields.csv_encoding.strip() or None, delimiter)
     return apply_overrides(
-        base,
+        replace(base, reader_options=reader_options),
         input_dir=Path(input_dir).expanduser(),
         output_path=Path(output_path).expanduser(),
         log_file=Path(log_file).expanduser() if log_file else None,
@@ -143,14 +154,8 @@ def run_from_fields(
     logger = None
     try:
         config = build_config(fields, base)
-        logger = runlog.setup_logging(config.log_file)
-        options = config.options
-        flags = ",".join(name for name, enabled in (
-            ("trim_text", options.trim_text), ("normalize_numbers", options.normalize_numbers),
-            ("dates_iso", options.dates_iso), ("remove_duplicates", options.remove_duplicates),
-        ) if enabled) or "none"
-        logger.info("start input=%s output=%s flags=%s key=%s", config.input_dir.resolve(),
-                    config.output_path.resolve(), flags, ",".join(options.key) or "-")
+        logger = runlog.setup_run_logging(config)
+        runlog.log_start(logger, config)
         result = run_config(config)
         for warning in result.warnings:
             logger.warning("%s", warning)

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "excel-consolidator"
 version = "0.1.0"
-description = "Consolidate .xlsx files into a single workbook with data-quality reporting, TOML configuration and a desktop GUI."
+description = "Consolidate .xlsx, .xls and .csv files into a single workbook with data-quality reporting, TOML configuration and a desktop GUI."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
@@ -25,10 +25,10 @@ classifiers = [
   "Topic :: Office/Business :: Financial :: Spreadsheet",
   "Topic :: Scientific/Engineering :: Information Analysis",
 ]
-dependencies = ["pandas", "openpyxl"]
+dependencies = ["pandas", "openpyxl", "xlrd>=2.0"]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "xlwt"]
 ui = ["customtkinter>=5.2"]
 
 [project.scripts]

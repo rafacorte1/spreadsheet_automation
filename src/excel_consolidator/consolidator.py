@@ -12,6 +12,7 @@ from .reader import (
     ORIGIN_COLUMN, ConsolidationError, SheetData, discover_input_files,
     read_sheet, validate_headers,
 )
+from .reader_options import ReaderOptions
 
 
 @dataclass(frozen=True)
@@ -30,13 +31,18 @@ class ConsolidationResult:
         return len(self.frame)
 
 
-def consolidate(input_dir: Path, options: QualityOptions | None = None) -> ConsolidationResult:
+def consolidate(
+    input_dir: Path,
+    options: QualityOptions | None = None,
+    reader_options: ReaderOptions = ReaderOptions(),
+) -> ConsolidationResult:
     """Validate every input and concatenate preserving values and order."""
     options = options if options is not None else QualityOptions()
-    paths = discover_input_files(input_dir)
+    paths = discover_input_files(input_dir, reader_options.formats)
     if not paths:
-        raise ConsolidationError(f"no .xlsx files in {input_dir}")
-    files = tuple(read_sheet(path) for path in paths)
+        formats = ", ".join(f".{item}" for item in reader_options.formats)
+        raise ConsolidationError(f"no {formats} files in {input_dir}")
+    files = tuple(read_sheet(path, reader_options) for path in paths)
     stats = {}
     if options.any_standardization:
         results = tuple(standardize(sheet, options) for sheet in files)
@@ -44,7 +50,7 @@ def consolidate(input_dir: Path, options: QualityOptions | None = None) -> Conso
         stats = {result.sheet.path.name: result.stats for result in results}
     reference = files[0]
     unknown = [column for column in options.key if column not in reference.columns]
-    warnings: list[str] = []
+    warnings = [warning for sheet in files for warning in sheet.warnings]
     if unknown and options.remove_duplicates:
         raise ConsolidationError(f"key {options.key}: unknown columns {unknown} in {reference.path}")
     if unknown:

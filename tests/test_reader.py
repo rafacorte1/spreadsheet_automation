@@ -30,7 +30,7 @@ def test_discover_sorted_and_filtered(tmp_path: Path) -> None:
     nested = tmp_path / "nested"
     nested.mkdir()
     (nested / "hidden.xlsx").touch()
-    assert discover_input_files(tmp_path) == [tmp_path / "a.xlsx", tmp_path / "z.xlsx"]
+    assert discover_input_files(tmp_path, ("xlsx",)) == [tmp_path / "a.xlsx", tmp_path / "z.xlsx"]
 
 
 def test_discover_empty_and_missing(tmp_path: Path) -> None:

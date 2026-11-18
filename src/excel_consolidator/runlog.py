@@ -1,15 +1,42 @@
-"""File logging, explicitly configured by the CLI."""
+"""File logging for CLI and GUI runs."""
 from pathlib import Path
 import logging
 from logging.handlers import RotatingFileHandler
 
+from .config import RuntimeConfig
 from .errors import ConsolidationError
+from .reader import check_write_destination, discover_input_files
 
 LOGGER_NAME: str = "excel_consolidator"
 LOG_FORMAT: str = "%(asctime)s %(levelname)s %(message)s"
 DATE_FORMAT: str = "%Y-%m-%d %H:%M:%S"
 DEFAULT_MAX_BYTES: int = 1_000_000
 DEFAULT_BACKUP_COUNT: int = 1
+
+
+def setup_run_logging(config: RuntimeConfig) -> logging.Logger:
+    """Open the run log after checking that it cannot clobber existing data."""
+    if config.log_file.exists():
+        inputs = discover_input_files(config.input_dir, config.reader_options.formats)
+        check_write_destination(config.log_file, [config.output_path, *inputs])
+    return setup_logging(config.log_file, max_bytes=DEFAULT_MAX_BYTES, backup_count=DEFAULT_BACKUP_COUNT)
+
+
+def log_start(logger: logging.Logger, config: RuntimeConfig) -> None:
+    """Record the effective settings in the run's first log entry."""
+    options = config.options
+    reader = config.reader_options
+    flags = ",".join(name for name, enabled in (
+        ("trim_text", options.trim_text), ("normalize_numbers", options.normalize_numbers),
+        ("dates_iso", options.dates_iso), ("remove_duplicates", options.remove_duplicates),
+    ) if enabled) or "none"
+    logger.info(
+        "start input=%s output=%s flags=%s key=%s formats=%s csv_encoding=%s csv_delimiter=%s",
+        config.input_dir.resolve(), config.output_path.resolve(), flags,
+        ",".join(options.key) or "-", ",".join(reader.formats),
+        reader.csv_encoding if reader.csv_encoding is not None else "auto",
+        repr(reader.csv_delimiter) if reader.csv_delimiter is not None else "auto",
+    )
 
 
 def close_logging(logger: logging.Logger) -> None:

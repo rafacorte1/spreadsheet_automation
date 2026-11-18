@@ -25,7 +25,7 @@ def test_input_error_preserves_output(tmp_path, capsys, existing):
     assert main(["--input", str(tmp_path / "missing"), "--output", str(output)]) == 1
     captured = capsys.readouterr()
     assert captured.out == ""
-    assert captured.err == f"error: no .xlsx files in {tmp_path / 'missing'}\n"
+    assert captured.err == f"error: no .xlsx, .xls, .csv files in {tmp_path / 'missing'}\n"
     assert "Traceback" not in captured.err
     assert output.read_bytes() == b"previous result" if existing else not output.exists()
 

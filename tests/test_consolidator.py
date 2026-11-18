@@ -27,7 +27,7 @@ def test_vertical_sorted_raw_values_and_unchanged_inputs(tmp_path, make_xlsx):
 
 
 def test_empty_directory(tmp_path):
-    with pytest.raises(ConsolidationError, match=f"no .xlsx files in {tmp_path}"):
+    with pytest.raises(ConsolidationError, match=f"no .xlsx, .xls, .csv files in {tmp_path}"):
         consolidate(tmp_path)
 
 

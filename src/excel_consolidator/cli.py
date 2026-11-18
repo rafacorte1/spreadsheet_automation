@@ -10,14 +10,16 @@ from .config import DEFAULT_INPUT, DEFAULT_OUTPUT, RuntimeConfig, load_config, a
 from . import runlog
 from .consolidator import ConsolidationResult, consolidate
 from .errors import ConsolidationError
+from .reader import check_write_destination
 from .writer import write_atomic
 from .quality import QualityOptions
+from .reader_options import INPUT_FORMATS, ReaderOptions
 from .report import summarize
 
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the argument parser for the CLI."""
-    parser = argparse.ArgumentParser(description="Consolidate .xlsx spreadsheets vertically.")
+    parser = argparse.ArgumentParser(description="Consolidate .xlsx, .xls and .csv inputs vertically.")
     parser.add_argument("--input", type=Path, default=None, metavar="DIR")
     parser.add_argument("--output", type=Path, default=None, metavar="PATH")
     parser.add_argument("--trim-text", action="store_true", default=None)
@@ -27,19 +29,31 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--remove-duplicates", action="store_true", default=None)
     parser.add_argument("--config", type=Path, default=None)
     parser.add_argument("--log-file", type=Path, default=None)
+    parser.add_argument("--formats", nargs="+", choices=INPUT_FORMATS,
+                        help="restrict the input formats (default: all)")
+    parser.add_argument("--csv-encoding", metavar="NAME",
+                        help="set the CSV encoding explicitly (default: automatic)")
+    parser.add_argument("--csv-delimiter", metavar="CHAR",
+                        help="set a single-character CSV delimiter (default: automatic)")
     return parser
 
 
-def run(input_dir: Path, output_path: Path, options: QualityOptions | None = None) -> ConsolidationResult:
+def run(
+    input_dir: Path,
+    output_path: Path,
+    options: QualityOptions | None = None,
+    reader_options: ReaderOptions = ReaderOptions(),
+) -> ConsolidationResult:
     """Consolidate validated inputs and publish the result atomically."""
-    result = consolidate(input_dir, options)
+    result = consolidate(input_dir, options, reader_options)
+    check_write_destination(output_path, (sheet.path for sheet in result.files))
     write_atomic(result.frame, output_path, result.report)
     return result
 
 
 def run_config(config: RuntimeConfig) -> ConsolidationResult:
     """Run a resolved configuration without logging or console output."""
-    return run(config.input_dir, config.output_path, config.options)
+    return run(config.input_dir, config.output_path, config.options, config.reader_options)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -52,22 +66,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             config, input_dir=args.input, output_path=args.output, log_file=args.log_file,
             trim_text=args.trim_text, normalize_numbers=args.normalize_numbers,
             dates_iso=args.dates_iso, remove_duplicates=args.remove_duplicates,
+            formats=tuple(args.formats) if args.formats is not None else None,
+            csv_encoding=args.csv_encoding, csv_delimiter=args.csv_delimiter,
         )
-        logger = runlog.setup_logging(config.log_file, max_bytes=runlog.DEFAULT_MAX_BYTES,
-                                      backup_count=runlog.DEFAULT_BACKUP_COUNT)
+        logger = runlog.setup_run_logging(config)
         if args.key is not None:
             key = tuple(part.strip() for part in args.key.split(",") if part.strip())
             if not key:
                 raise ConsolidationError("empty key: provide at least one column")
             config = apply_overrides(config, key=key)
-        options = config.options
-        flags = ",".join(name for name, enabled in (
-            ("trim_text", options.trim_text), ("normalize_numbers", options.normalize_numbers),
-            ("dates_iso", options.dates_iso), ("remove_duplicates", options.remove_duplicates),
-        ) if enabled) or "none"
-        logger.info("start input=%s output=%s flags=%s key=%s",
-                    config.input_dir.resolve(), config.output_path.resolve(), flags,
-                    ",".join(options.key) or "-")
+        runlog.log_start(logger, config)
         result = run_config(config)
         for warning in result.warnings:
             logger.warning("%s", warning)

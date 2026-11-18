@@ -7,6 +7,7 @@ import tomllib
 
 from .errors import ConsolidationError
 from .quality import QualityOptions
+from .reader_options import ReaderOptions
 
 CONFIG_FILENAME: str = "config.toml"
 DEFAULT_INPUT: Path = Path("data/input")
@@ -17,6 +18,8 @@ _QUALITY_KEYS: tuple[str, ...] = (
     "trim_text", "normalize_numbers", "dates_iso", "remove_duplicates", "key",
 )
 _PATH_KEYS = {"input": "input_dir", "output": "output_path", "log_file": "log_file"}
+_CSV_KEYS = {"encoding", "delimiter"}
+_READER_FIELDS = {"formats", "csv_encoding", "csv_delimiter"}
 
 
 @dataclass(frozen=True)
@@ -27,6 +30,7 @@ class RuntimeConfig:
     output_path: Path
     log_file: Path
     options: QualityOptions
+    reader_options: ReaderOptions = ReaderOptions()
 
 
 def _type_error(key: str, expected: str, value: object) -> ConsolidationError:
@@ -52,13 +56,18 @@ def load_config(path: Path | None = None) -> RuntimeConfig:
         raise ConsolidationError(f"error reading configuration '{config_path}': {exc}") from exc
 
     quality = data.get("quality", {})
-    unknown = set(data) - {*_PATH_KEYS, "quality"}
+    csv = data.get("csv", {})
+    unknown = set(data) - {*_PATH_KEYS, "quality", "formats", "csv"}
     if isinstance(quality, dict):
         unknown.update(f"quality.{key}" for key in quality.keys() - set(_QUALITY_KEYS))
+    if isinstance(csv, dict):
+        unknown.update(f"csv.{key}" for key in csv.keys() - _CSV_KEYS)
     if unknown:
         raise ConsolidationError("unknown keys: " + ", ".join(sorted(unknown)))
     if not isinstance(quality, dict):
         raise _type_error("quality", "table (dict)", quality)
+    if not isinstance(csv, dict):
+        raise _type_error("csv", "table (dict)", csv)
 
     paths: dict[str, Path] = {}
     for key, field in _PATH_KEYS.items():
@@ -83,16 +92,29 @@ def load_config(path: Path | None = None) -> RuntimeConfig:
             if not isinstance(value, bool):
                 raise _type_error(name, "bool", value)
             options[key] = value
-    return replace(config, **paths, options=replace(config.options, **options))
+    reader: dict[str, object] = {}
+    if "formats" in data:
+        formats = data["formats"]
+        if not isinstance(formats, list) or any(not isinstance(item, str) for item in formats):
+            raise _type_error("formats", "list of str", formats)
+        reader["formats"] = tuple(formats)
+    for key, value in csv.items():
+        if not isinstance(value, str):
+            raise _type_error(f"csv.{key}", "str", value)
+        reader[f"csv_{key}"] = value
+    return replace(config, **paths, options=replace(config.options, **options),
+                   reader_options=replace(config.reader_options, **reader))
 
 
 def apply_overrides(config: RuntimeConfig, **overrides: object) -> RuntimeConfig:
     """Apply explicit values over file and defaults without mutation."""
     path_fields = set(_PATH_KEYS.values())
     quality_fields = set(_QUALITY_KEYS)
-    unknown = overrides.keys() - path_fields - quality_fields
+    unknown = overrides.keys() - path_fields - quality_fields - _READER_FIELDS
     if unknown:
         raise TypeError("unknown overrides: " + ", ".join(sorted(unknown)))
     paths = {key: value for key, value in overrides.items() if key in path_fields and value is not None}
     options = {key: value for key, value in overrides.items() if key in quality_fields and value is not None}
-    return replace(config, **paths, options=replace(config.options, **options))
+    reader = {key: value for key, value in overrides.items() if key in _READER_FIELDS and value is not None}
+    return replace(config, **paths, options=replace(config.options, **options),
+                   reader_options=replace(config.reader_options, **reader))

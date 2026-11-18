@@ -63,6 +63,24 @@ class App(ctk.CTk):
                 paths, text="Browse", width=100,
                 command=lambda target=variable, kind=row: self._browse(target, kind),
             ).grid(row=row, column=2, padx=(8, 16), pady=8)
+        ctk.CTkButton(paths, text="From file", width=100, command=self._browse_input_file).grid(
+            row=0, column=3, padx=(0, 16), pady=8)
+
+        inputs = ctk.CTkFrame(paths, fg_color="transparent")
+        inputs.grid(row=3, column=0, columnspan=4, padx=8, pady=(0, 8), sticky="ew")
+        self.formats_var = ctk.StringVar()
+        self.csv_encoding_var = ctk.StringVar()
+        self.csv_delimiter_var = ctk.StringVar()
+        settings = (
+            ("Formats (comma separated)", self.formats_var, "xlsx, xls, csv"),
+            ("CSV encoding", self.csv_encoding_var, "auto"),
+            ("CSV delimiter", self.csv_delimiter_var, "auto"),
+        )
+        for column, (label, variable, placeholder) in enumerate(settings):
+            ctk.CTkLabel(inputs, text=label).grid(row=0, column=2 * column, padx=8, sticky="w")
+            inputs.grid_columnconfigure(2 * column + 1, weight=1)
+            ctk.CTkEntry(inputs, textvariable=variable, placeholder_text=placeholder).grid(
+                row=0, column=2 * column + 1, padx=8, sticky="ew")
 
         quality = ctk.CTkFrame(self)
         quality.grid(row=1, column=0, sticky="ew", **_SECTION_PAD)
@@ -176,6 +194,9 @@ class App(ctk.CTk):
         self.numbers_var.set(fields.normalize_numbers)
         self.dates_var.set(fields.dates_iso)
         self.duplicates_var.set(fields.remove_duplicates)
+        self.formats_var.set(fields.formats)
+        self.csv_encoding_var.set(fields.csv_encoding)
+        self.csv_delimiter_var.set(fields.csv_delimiter)
 
     def _fields(self) -> FormFields:
         return FormFields(
@@ -187,6 +208,9 @@ class App(ctk.CTk):
             normalize_numbers=bool(self.numbers_var.get()),
             dates_iso=bool(self.dates_var.get()),
             remove_duplicates=bool(self.duplicates_var.get()),
+            formats=self.formats_var.get(),
+            csv_encoding=self.csv_encoding_var.get(),
+            csv_delimiter=self.csv_delimiter_var.get(),
         )
 
     # actions
@@ -201,6 +225,18 @@ class App(ctk.CTk):
             )
         if chosen:
             target.set(chosen)
+
+    def _browse_input_file(self) -> None:
+        chosen = filedialog.askopenfilename(
+            title="Choose a file in the input folder",
+            initialdir=self.input_var.get(),
+            filetypes=[
+                ("Excel and CSV", ("*.xlsx", "*.XLSX", "*.xls", "*.XLS", "*.csv", "*.CSV")),
+                ("All files", "*"),
+            ],
+        )
+        if chosen:
+            self.input_var.set(str(Path(chosen).parent))
 
     def _start_run(self) -> None:
         if self.running:
