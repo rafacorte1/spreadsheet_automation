@@ -23,6 +23,8 @@ A Python CLI and optional desktop GUI that consolidate `.xlsx`, legacy BIFF `.xl
 | 6 | CSV data and report exports, `--output-format`, `--json` | approved | `9a6a60d` |
 | | packaging (`.app`, double-click launcher) | deferred by the PO | |
 
+**Project closed on 2026-11-18.** All six approved increments are delivered and the tool is in use as a CLI over SSH on the owner's VPS. No further increment is approved. `docs/briefs/sprint7-k-intake.md` holds a scoped but unapproved proposal (intake with archiving) in case the work is ever resumed; it must not be implemented without an explicit approval gate.
+
 Sprint 5 verification produced 230 passing tests and 4 window tests skipped on a headless machine. Three pre-existing tests changed. In `tests/test_reader.py` the discovery filter now passes `("xlsx",)` explicitly to retain its original expectation, and a separate mixed-input test exercises the new default. In `tests/test_cli.py` and `tests/test_consolidator.py` the empty-folder assertion now expects the message that names every enabled extension (`no .xlsx, .xls, .csv files in …`), because the previous text named one format while the default run looks for three.
 
 Sprint 6 verification with `.venv/bin/python -m pytest tests -q` produced 257 passes and 4 window tests skipped on the headless VPS. The existing window smoke test gained checks for the new selector. The synthetic SSH demonstration ran both CLI summary modes with three mixed inputs and seven output rows. It compared both CSVs with the workbook and verified the input SHA-256 hashes after each run.
