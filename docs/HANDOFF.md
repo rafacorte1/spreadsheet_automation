@@ -142,8 +142,10 @@ The recorded run used the default quality options and includes Python startup, i
 
 ## Next steps (candidates, not approved)
 
+The product owner decided on 2026-11-18 that real use happens on this VPS over SSH, CLI only. The GUI stays as an optional convenience for a desktop session and is not part of the critical path, so window validation and packaging no longer block anything.
+
 1. A separate load test with representative large spreadsheets remains a candidate. The Sprint 5 benchmark used synthetic data.
-2. Packaging for a double click: Windows target now, so PyInstaller or a `.bat`/PowerShell launcher; deferred by the PO.
+2. Packaging for a double click: deferred indefinitely; the owner runs the CLI over SSH.
 3. Output permissions: 600 is kept by PO decision; reopen only if another local account needs to read the report.
 
 ## Known pitfalls
