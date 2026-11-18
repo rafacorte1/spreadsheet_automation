@@ -90,7 +90,7 @@ A consolidation or configuration error prints `error: <message>` on stderr with 
 
 ## Environment
 
-Sprint 5 was verified on Linux x86_64 with Python 3.14.9, pandas 3.1.1, openpyxl 3.1.5, pytest 9.2.0, customtkinter 6.0.0, xlrd 2.0.2 and xlwt 1.3.0. The previous macOS environment used Python 3.14.6 and Tk 9.0.
+Sprint 5 was verified on Linux x86_64 with Python 3.14.9, pandas 3.1.1, openpyxl 3.1.5, pytest 9.2.0, customtkinter 6.0.0, xlrd 2.0.2 and xlwt 1.3.0. Product owner environment changed in November 2026: the macOS machine was replaced by a Windows PC, and terminal work happens inside WSL. macOS details below are history, not the current target. Window validation and packaging now target Windows: run the GUI inside WSL (needs WSLg and `python3-tk`) or with a native Windows Python, and package with PyInstaller or a `.bat` launcher instead of a `.app`.
 
 ## How to run
 
@@ -103,6 +103,8 @@ python3 -m venv .venv
 .venv/bin/python -m excel_consolidator --config config.example.toml
 .venv/bin/python -m excel_consolidator.ui
 ```
+
+The commands above are the WSL/Linux form. With a native Windows Python the interpreter lives at `.venv\Scripts\python.exe`, and the GUI needs a real desktop session.
 
 Restrict a run to CSV and provide an explicit separator and encoding for a known export.
 
@@ -141,7 +143,7 @@ The recorded run used the default quality options and includes Python startup, i
 ## Next steps (candidates, not approved)
 
 1. A separate load test with representative large spreadsheets remains a candidate. The Sprint 5 benchmark used synthetic data.
-2. Packaging (`.app`, double-click launcher) is deferred by the PO.
+2. Packaging for a double click: Windows target now, so PyInstaller or a `.bat`/PowerShell launcher; deferred by the PO.
 3. Output permissions: 600 is kept by PO decision; reopen only if another local account needs to read the report.
 
 ## Known pitfalls
