@@ -20,7 +20,7 @@ A Python CLI and optional desktop GUI that consolidate `.xlsx`, legacy BIFF `.xl
 | 4 | customtkinter interface (Summary / Report / Log) | approved | `1b21f26` |
 | | key validated only when used | approved | see `git log` |
 | 5 | mixed `.xlsx`, `.xls` and `.csv` inputs with configurable CSV parsing | approved | `0b6cb6a` |
-| 6 | CSV data and report exports, `--output-format`, `--json` | implemented, awaiting PO approval | |
+| 6 | CSV data and report exports, `--output-format`, `--json` | approved | `9a6a60d` |
 | | packaging (`.app`, double-click launcher) | deferred by the PO | |
 
 Sprint 5 verification produced 230 passing tests and 4 window tests skipped on a headless machine. Three pre-existing tests changed. In `tests/test_reader.py` the discovery filter now passes `("xlsx",)` explicitly to retain its original expectation, and a separate mixed-input test exercises the new default. In `tests/test_cli.py` and `tests/test_consolidator.py` the empty-folder assertion now expects the message that names every enabled extension (`no .xlsx, .xls, .csv files in …`), because the previous text named one format while the default run looks for three.
