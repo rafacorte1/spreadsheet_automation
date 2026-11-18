@@ -8,7 +8,10 @@ import pandas as pd
 
 from .. import runlog
 from ..cli import run_config
-from ..config import DEFAULT_INPUT, DEFAULT_LOG_FILE, DEFAULT_OUTPUT, RuntimeConfig, apply_overrides, load_config
+from ..config import (
+    DEFAULT_INPUT, DEFAULT_LOG_FILE, DEFAULT_OUTPUT, DEFAULT_OUTPUT_FORMAT, RuntimeConfig,
+    apply_overrides, load_config,
+)
 from ..errors import ConsolidationError
 from ..quality import QualityOptions
 from ..reader_options import INPUT_FORMATS, ReaderOptions
@@ -43,6 +46,7 @@ class FormFields:
     formats: str = ", ".join(INPUT_FORMATS)
     csv_encoding: str = ""
     csv_delimiter: str = ""
+    output_format: str = DEFAULT_OUTPUT_FORMAT
 
     @classmethod
     def from_config(cls, config: RuntimeConfig) -> "FormFields":
@@ -61,6 +65,7 @@ class FormFields:
             formats=", ".join(reader.formats),
             csv_encoding=reader.csv_encoding or "",
             csv_delimiter=r"\t" if reader.csv_delimiter == "\t" else reader.csv_delimiter or "",
+            output_format=config.output_format,
         )
 
 
@@ -96,6 +101,7 @@ def build_config(fields: FormFields, base: RuntimeConfig | None = None) -> Runti
         replace(base, reader_options=reader_options),
         input_dir=Path(input_dir).expanduser(),
         output_path=Path(output_path).expanduser(),
+        output_format=fields.output_format,
         log_file=Path(log_file).expanduser() if log_file else None,
         trim_text=fields.trim_text,
         normalize_numbers=fields.normalize_numbers,
@@ -162,9 +168,7 @@ def run_from_fields(
         rows_read = result.report.loc[result.report["metric"] == "rows_read", "value"].sum()
         logger.info("read files=%s rows_read=%s", len(result.files), rows_read)
         summary = summarize(result.report)
-        logger.info("written rows=%s nulls=%s duplicates=%s removed=%s changed=%s output=%s",
-                    result.rows, summary.nulls, summary.duplicates, summary.removed,
-                    summary.changed, config.output_path.resolve())
+        runlog.log_written(logger, config, result, summary)
         return RunOutcome(
             ok=True,
             message=format_summary(len(result.files), result.rows, config.output_path, summary),

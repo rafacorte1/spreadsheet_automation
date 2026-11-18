@@ -1,17 +1,17 @@
 # Excel Consolidator
 
-Consolidate `.xlsx`, legacy `.xls` and `.csv` files from a folder into one `.xlsx` workbook, keep the origin of every row, and get a quality report.
+Consolidate `.xlsx`, legacy `.xls` and `.csv` files from a folder into a workbook, CSV files or both. Each export includes row origins and a quality report.
 
 [![CI](https://github.com/rafacorte1/spreadsheet_automation/actions/workflows/ci.yml/badge.svg)](https://github.com/rafacorte1/spreadsheet_automation/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
-![tests](https://img.shields.io/badge/tests-230%20passed-brightgreen)
+![tests](https://img.shields.io/badge/tests-257%20passed-brightgreen)
 ![license](https://img.shields.io/badge/license-MIT-blue)
 
 ## What it does
 
 The tool reads the first worksheet of each Excel workbook and the records of each CSV file directly inside an input folder. It validates that the headers match, concatenates the rows in file-name order and adds a `source_file` column with the file name. Three optional rules standardise text, Brazilian-format numbers and dates. Duplicates can be counted, or removed by full row or by key.
 
-The output is a workbook with two sheets: `consolidated` (the data) and `report` (a long-format quality report). The CLI prints four lines on success and writes a rotating log. Input files are never modified.
+The default export is a workbook with `consolidated` and `report` sheets. CSV exports contain the same data and report in two files. The CLI writes a rotating log and prints four lines on success, or one JSON object with `--json`. Input files are never modified.
 
 There is no database, no API and no scheduler. A local run is one command, and the same core is used by the optional desktop GUI.
 
@@ -23,8 +23,8 @@ There is no database, no API and no scheduler. A local run is one command, and t
 - Origin tracking: every row keeps the name of the file it came from.
 - Optional standardisation with per-column counters for changes and failures.
 - Duplicate detection across files, by whole row or by key columns, with removal keeping the first occurrence in file and row order.
-- Long-format report sheet with one row per metric, so it can be consumed without parsing text.
-- Atomic output. A temporary workbook is fully written in the destination directory and moved into place. The tool rejects destinations that overlap a selected input file.
+- Long-format quality report with one row per metric.
+- Atomic file replacement. The tool stages all exports in the destination directory before publishing any of them and rejects destinations that overlap selected inputs.
 - TOML configuration with explicit precedence, and a rotating log with one backup.
 - Optional customtkinter GUI that reuses the CLI core and writes the same log file.
 
@@ -36,8 +36,8 @@ flowchart LR
     B --> C[Optional standardisation<br/>trim, numbers, dates]
     C --> D[Concatenate<br/>plus source_file]
     D --> E[Quality report<br/>nulls, changes, duplicates]
-    E --> F[Write temp workbook<br/>consolidated + report]
-    F --> G[os.replace<br/>to output path]
+    E --> F[Stage workbook and/or CSV files]
+    F --> G[Publish complete files<br/>with os.replace]
 
     CFG[(config.toml<br/>CLI overrides)] -.-> B
     CFG -.-> C
@@ -88,12 +88,26 @@ Open the GUI (requires the `ui` extra):
 python -m excel_consolidator.ui
 ```
 
+## Run over SSH
+
+From the project directory on the VPS, export both formats and save the single-line JSON summary for a script to consume.
+
+```bash
+.venv/bin/python -m excel_consolidator --input /srv/imports \
+  --output /srv/exports/consolidated.xlsx --output-format both \
+  --log-file /srv/exports/consolidation.log --json > /srv/exports/summary.json
+```
+
+Use an existing directory for the shell redirection. For CSV only, pass `--output-format csv --output /srv/exports/consolidated.csv`. Leave off `--json` for the four-line terminal summary.
+
 ## CLI reference
 
 | Flag | Argument | Default | Effect |
 |---|---|---|---|
 | `--input` | `DIR` | `data/input` | Folder scanned for files in the selected formats. |
-| `--output` | `PATH` | `data/output/consolidated.xlsx` | Destination workbook. Parent directories are created. |
+| `--output` | `PATH` | `data/output/consolidated.xlsx` | Primary export path. Parent directories are created. |
+| `--output-format` | `xlsx`, `csv`, `both` | `xlsx` | Choose the workbook, CSV data and report, or all three files. |
+| `--json` | none | off | Print a one-line JSON success summary on stdout. |
 | `--formats` | `FORMAT [FORMAT ...]` | `xlsx xls csv` | Restrict input formats using space-separated values. |
 | `--csv-encoding` | `NAME` | UTF-8 with BOM handling and CP1252 fallback | Set an explicit CSV encoding, such as `latin-1`. Decode errors report the file and a zero-based byte offset. |
 | `--csv-delimiter` | `CHAR` | automatic | Supply a single character, for example `';'` or Bash `$'\t'`. |
@@ -119,7 +133,15 @@ With delimiter omitted, the reader parses the first 50 nonempty lines with each 
 
 ## Output contract
 
-A successful run prints exactly four lines to stdout:
+| `--output-format` | Export paths |
+|---|---|
+| `xlsx` | `--output` holds the `consolidated` and `report` worksheets. |
+| `csv` | `--output` holds the data. Its sibling `<stem>_report.csv` holds the report. Use the desired primary extension in `--output`. |
+| `both` | `--output` must end in `.xlsx`. The workbook goes there, and its siblings `<stem>.csv` and `<stem>_report.csv` hold the data and report. |
+
+Both CSVs use UTF-8 with a BOM, comma delimiters, LF record endings and minimal quoting. The data header includes `source_file`. `None` becomes an empty field, and numbers, booleans and dates use Python's `str(value)`. The workbook stores Excel cell types and puts the two tables on separate sheets. For example, a Python `date` becomes `2026-11-18` in CSV and an Excel date cell in the workbook.
+
+By default, a successful run prints exactly four lines to stdout.
 
 ```text
 files: N
@@ -130,20 +152,26 @@ quality: nulls=N duplicates=N removed=N changed=N
 
 - `files` is the number of input files read.
 - `rows` is the number of data rows in the output, after any duplicate removal.
-- `output` is the absolute path of the workbook that was written.
+- `output` is the absolute path of the primary export.
 - `quality` sums nulls, duplicate rows, removed rows and change operations across the whole run.
 
-Exit codes:
+With `--json`, stdout contains one JSON object followed by a newline.
+
+```json
+{"files":3,"rows":7,"output":"/srv/exports/consolidated.xlsx","outputs":{"xlsx":"/srv/exports/consolidated.xlsx","csv":"/srv/exports/consolidated.csv","report":"/srv/exports/consolidated_report.csv"},"quality":{"nulls":0,"duplicates":0,"removed":0,"changed":0},"warnings":[]}
+```
+
+`outputs` includes the absolute paths for the keys written in that run. `warnings` contains the warning messages recorded in the log. The exit codes apply in both summary modes.
 
 | Code | Meaning |
 |---|---|
 | `0` | Success. |
-| `1` | Consolidation or configuration error. `error: MESSAGE` is printed on stderr, no traceback, the previous output file is left untouched. |
+| `1` | Consolidation or configuration error. Stderr receives `error: MESSAGE` and stdout is empty. |
 | `2` | Invalid command-line arguments, reported by argparse. |
 
 ## Report schema
 
-The `report` sheet has exactly five columns, in this order: `section`, `file`, `column`, `metric`, `value`. Files appear in alphabetical order, columns in the order of their own sheet, and zero counters are written explicitly so the layout does not shift between runs.
+The `report` sheet and `<stem>_report.csv` use the same rows and five columns in order `section`, `file`, `column`, `metric`, `value`. Files appear in alphabetical order, columns in the order of their own sheet, and zero counters are written explicitly so the layout does not shift between runs.
 
 | Section | File | Column | Metric | Meaning |
 |---|---|---|---|---|
@@ -195,6 +223,7 @@ input = "data/input"
 output = "data/output/consolidated.xlsx"
 log_file = "data/output/consolidation.log"
 formats = ["xlsx", "xls", "csv"]
+# output_format = "both"  # xlsx (default), csv, or both
 
 # Uncomment to set CSV options explicitly.
 # [csv]
@@ -215,15 +244,15 @@ Precedence is explicit CLI value, then file, then built-in defaults. A flag that
 
 Paths written in the TOML are resolved relative to the TOML file itself, so running the CLI from another directory does not change the targets. CLI paths and defaults are resolved relative to the current working directory. Absolute paths are used as given.
 
-Unknown keys, wrong types and invalid format values produce an error naming the offending key. The formats list must contain at least one of `xlsx`, `xls` and `csv`. An explicit `--config` path must exist. The implicit `config.toml` is optional.
+Unknown keys, wrong types and invalid format values produce an error naming the offending key. The `formats` list must contain at least one of `xlsx`, `xls` and `csv`. The `output_format` string must be `xlsx`, `csv` or `both`. An explicit `--config` path must exist. The implicit `config.toml` is optional.
 
 The repository ships `config.example.toml` with every key. Copy it to `config.toml` and adjust the key to the columns of your inputs.
 
 ## Logging
 
-The default log path is `data/output/consolidation.log`. `--log-file` overrides the configured path. The file is UTF-8, appended on every run, and rotated at roughly 1 MB with one backup (`consolidation.log.1`). The format is `YYYY-MM-DD HH:MM:SS LEVEL message`. There is no console handler: stdout belongs to the four-line contract.
+The default log path is `data/output/consolidation.log`. `--log-file` overrides the configured path. The file is UTF-8, appended on every run, and rotated at roughly 1 MB with one backup (`consolidation.log.1`). The format is `YYYY-MM-DD HH:MM:SS LEVEL message`. Logs go to the file in either stdout mode.
 
-Each successful run writes three INFO lines for `start` (resolved paths, active flags, key, input formats and CSV settings), `read` (file count and rows read) and `written` (final rows, counters, absolute output path). An ignored key or automatic CSV settings add a `WARNING`. Execution failures are logged after the log opens. Configuration and log-opening failures are reported on stderr.
+Each successful run writes three INFO lines for `start` (resolved paths, active flags, key and formats), `read` (file count and rows read) and `written` (final rows, counters and every absolute export path). An ignored key or automatic CSV settings add a `WARNING`. Execution failures are logged after the log opens. Configuration and log-opening failures are reported on stderr.
 
 ## GUI
 
@@ -234,7 +263,8 @@ python -m excel_consolidator.ui
 python -m excel_consolidator.ui --config path/to/config.toml
 ```
 
-- Fields for the input folder, output workbook, log file, formats, CSV encoding and delimiter, plus the quality switches and key. Enter formats separated by commas. Leave the CSV fields blank for automatic detection or enter `\t` to use tab explicitly.
+- Fields for the input folder, output file, output format, log file, input formats, CSV encoding and delimiter, plus the quality switches and key. Enter input formats separated by commas. Leave the CSV fields blank for automatic detection or enter `\t` to use tab explicitly.
+- The output format selector controls the default extension offered by **Browse**. Edit the output path directly to use a custom filename in `csv` mode.
 - The input folder can be selected directly or from the parent of a file chosen with **From file**. Its filter includes all three input formats.
 - Buttons: Consolidate, Reload config, Open output folder.
 - Summary tab: the same four lines the CLI prints, plus any error message.
@@ -257,7 +287,7 @@ The screenshot shows the Sprint 4 layout before the input format and CSV fields 
 
 **`dtype=object` on concatenation.** Without it pandas converts `None` to `NaN` and numeric strings to numbers, which would change the data during an operation that is supposed to only stack rows.
 
-**Atomic write.** The workbook is built in a temporary file in the destination directory and moved with `os.replace` only after it is complete. A failure keeps the previous output byte for byte and removes the temporary. Building directly on the destination would leave a truncated workbook after an error.
+**Atomic file replacement.** All exports are written to temporary files in the destination directory. A write failure removes the temporaries and keeps the previous exports byte for byte. Publication uses `os.replace` for each file, with rollback of earlier replacements if a later one fails.
 
 **Long-format report.** Five columns, one row per metric, explicit zeroes. It survives new rules and new sections without breaking a reader, and it can be filtered or pivoted without parsing text.
 
@@ -278,7 +308,7 @@ The screenshot shows the Sprint 4 layout before the input format and CSV fields 
 │   └── verification/            # independent verification scripts
 ├── pyproject.toml
 ├── src/excel_consolidator
-│   ├── cli.py                   # argparse, config merge, logging, four stdout lines
+│   ├── cli.py                   # argparse, config merge, logging, text or JSON summary
 │   ├── config.py                # TOML loading, validation, precedence
 │   ├── consolidator.py          # concatenation, key validation, optional dedup
 │   ├── csv_reader.py            # decoding, delimiter detection, raw text rows
@@ -288,7 +318,7 @@ The screenshot shows the Sprint 4 layout before the input format and CSV fields 
 │   ├── reader_options.py        # immutable format and CSV settings
 │   ├── report.py                # long-format report sheet
 │   ├── runlog.py                # rotating file handler
-│   ├── writer.py                # two sheets, temp file plus os.replace
+│   ├── writer.py                # workbook and CSV staging and replacement
 │   ├── xls_reader.py            # first BIFF worksheet and cell types
 │   └── ui
 │       ├── app.py               # widgets, worker thread, queue
@@ -306,7 +336,7 @@ The screenshot shows the Sprint 4 layout before the input format and CSV fields 
 .venv/bin/python -m pytest tests -q
 ```
 
-The Sprint 5 run had 230 passes and 4 window tests skipped because the environment had no display. The suite covers the three readers separately and together using synthetic files. The GUI controller tests run without a window.
+The Sprint 6 run had 257 passes and 4 window tests skipped because the environment had no display. The suite covers mixed inputs, all output modes, injected write and replacement failures, and the GUI controller using synthetic files.
 
 CI runs the same command on Ubuntu for Python 3.11, 3.12, 3.13 and 3.14.
 
@@ -320,12 +350,13 @@ CI runs the same command on Ubuntu for Python 3.11, 3.12, 3.13 and 3.14.
 - Duplicates are exact matches only. No fuzzy matching, no similarity threshold.
 - `--normalize-numbers` changes `"007"` into `7`; unsupported notations are failures, not conversions.
 - The whole dataset is held in memory. The synthetic benchmark in the handoff records time and peak memory for 100,000 `.xlsx` rows.
+- A multi-file export publishes files in sequence. Readers can see an intermediate set during publication, and an abrupt process termination can interrupt the sequence. Use separate output paths for overlapping runs.
 - The output file is created with mode 600 by design.
 - No scheduling. Runs are triggered by a command or by the GUI.
 
 ## Next steps
 
-Sprints 1 through 4 are approved. Sprint 5 is implemented and awaits Product Owner approval.
+Sprints 1 through 5 are approved. Sprint 6 is implemented and awaits Product Owner approval.
 
 - Load test with large real spreadsheets to confirm memory behaviour and decide whether chunked reading is needed.
 - Packaging (`.app` bundle, double-click launcher) is deferred by the product owner and not started.

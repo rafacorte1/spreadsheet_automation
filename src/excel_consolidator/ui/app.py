@@ -12,7 +12,7 @@ from tkinter import filedialog, ttk
 import customtkinter as ctk
 import pandas as pd
 
-from ..config import RuntimeConfig
+from ..config import OUTPUT_FORMATS, RuntimeConfig
 from ..report import REPORT_COLUMNS
 from . import controller
 from .controller import FormFields, RunOutcome
@@ -68,11 +68,12 @@ class App(ctk.CTk):
 
         inputs = ctk.CTkFrame(paths, fg_color="transparent")
         inputs.grid(row=3, column=0, columnspan=4, padx=8, pady=(0, 8), sticky="ew")
+        self.output_format_var = ctk.StringVar()
         self.formats_var = ctk.StringVar()
         self.csv_encoding_var = ctk.StringVar()
         self.csv_delimiter_var = ctk.StringVar()
         settings = (
-            ("Formats (comma separated)", self.formats_var, "xlsx, xls, csv"),
+            ("Input formats", self.formats_var, "xlsx, xls, csv"),
             ("CSV encoding", self.csv_encoding_var, "auto"),
             ("CSV delimiter", self.csv_delimiter_var, "auto"),
         )
@@ -81,6 +82,9 @@ class App(ctk.CTk):
             inputs.grid_columnconfigure(2 * column + 1, weight=1)
             ctk.CTkEntry(inputs, textvariable=variable, placeholder_text=placeholder).grid(
                 row=0, column=2 * column + 1, padx=8, sticky="ew")
+        ctk.CTkLabel(inputs, text="Output format").grid(row=1, column=0, padx=8, pady=(8, 0), sticky="w")
+        ctk.CTkOptionMenu(inputs, variable=self.output_format_var, values=list(OUTPUT_FORMATS)).grid(
+            row=1, column=1, padx=8, pady=(8, 0), sticky="ew")
 
         quality = ctk.CTkFrame(self)
         quality.grid(row=1, column=0, sticky="ew", **_SECTION_PAD)
@@ -197,6 +201,7 @@ class App(ctk.CTk):
         self.formats_var.set(fields.formats)
         self.csv_encoding_var.set(fields.csv_encoding)
         self.csv_delimiter_var.set(fields.csv_delimiter)
+        self.output_format_var.set(fields.output_format)
 
     def _fields(self) -> FormFields:
         return FormFields(
@@ -211,18 +216,22 @@ class App(ctk.CTk):
             formats=self.formats_var.get(),
             csv_encoding=self.csv_encoding_var.get(),
             csv_delimiter=self.csv_delimiter_var.get(),
+            output_format=self.output_format_var.get(),
         )
 
     # actions
     def _browse(self, target: ctk.StringVar, kind: int) -> None:
         if kind == 0:
             chosen = filedialog.askdirectory(title="Input folder", mustexist=True)
-        else:
+        elif kind == 1:
+            csv_only = self.output_format_var.get() == "csv"
             chosen = filedialog.asksaveasfilename(
-                title="Output file" if kind == 1 else "Log file",
-                defaultextension=".xlsx" if kind == 1 else ".log",
-                filetypes=[("Spreadsheet", "*.xlsx")] if kind == 1 else [("Log", "*.log")],
+                title="Output file", defaultextension=".csv" if csv_only else ".xlsx",
+                filetypes=[("CSV", "*.csv")] if csv_only else [("Spreadsheet", "*.xlsx")],
             )
+        else:
+            chosen = filedialog.asksaveasfilename(title="Log file", defaultextension=".log",
+                                                  filetypes=[("Log", "*.log")])
         if chosen:
             target.set(chosen)
 

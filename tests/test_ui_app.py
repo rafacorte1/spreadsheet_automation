@@ -38,6 +38,9 @@ def test_tabs_and_initial_fields(app):
     assert app.tabs.get() == "Log"
     assert app.input_var.get() == "data/input"
     assert app.output_var.get() == "data/output/consolidated.xlsx"
+    assert app.output_format_var.get() == "xlsx"
+    app.output_format_var.set("csv")
+    assert app._fields().output_format == "csv"
 
 
 def test_run_from_window_writes_output_and_fills_tabs(app, tmp_path, make_xlsx):

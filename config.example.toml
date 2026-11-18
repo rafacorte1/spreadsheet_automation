@@ -3,6 +3,10 @@ input = "data/input"
 output = "data/output/consolidated.xlsx"
 log_file = "data/output/consolidation.log"
 # formats = ["xlsx", "xls", "csv"]
+# xlsx (default), csv or both. With both, output must end in .xlsx.
+# output_format = "both"
+# Try both exports with this configuration.
+# .venv/bin/python -m excel_consolidator --config config.example.toml --output-format both --json
 
 [quality]
 # Optional standardisation.

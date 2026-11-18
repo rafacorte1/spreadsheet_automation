@@ -4,7 +4,7 @@ Restart document. Last updated 2026-11-18.
 
 ## What it is
 
-A Python CLI and optional desktop GUI that consolidate `.xlsx`, legacy BIFF `.xls` and `.csv` inputs vertically into an `.xlsx` workbook. The tool keeps the origin of every row, optionally standardises values, writes a quality report and records runs in a rotating log.
+A Python CLI and optional desktop GUI that consolidate `.xlsx`, legacy BIFF `.xls` and `.csv` inputs vertically into a workbook, CSV files or both. The tool keeps the origin of every row, optionally standardises values, writes a quality report and records runs in a rotating log. The CLI supports a one-line JSON summary over SSH.
 
 - Repository: `git@github.com:rafacorte1/spreadsheet_automation.git` (public, branch `main`)
 - Workflow: Product Owner (Rafael), then Hermes as Tech Lead and Scrum Master, then Codex CLI as implementer
@@ -20,9 +20,12 @@ A Python CLI and optional desktop GUI that consolidate `.xlsx`, legacy BIFF `.xl
 | 4 | customtkinter interface (Summary / Report / Log) | approved | `1b21f26` |
 | | key validated only when used | approved | see `git log` |
 | 5 | mixed `.xlsx`, `.xls` and `.csv` inputs with configurable CSV parsing | approved | `0b6cb6a` |
+| 6 | CSV data and report exports, `--output-format`, `--json` | implemented, awaiting PO approval | |
 | | packaging (`.app`, double-click launcher) | deferred by the PO | |
 
 Sprint 5 verification produced 230 passing tests and 4 window tests skipped on a headless machine. Three pre-existing tests changed. In `tests/test_reader.py` the discovery filter now passes `("xlsx",)` explicitly to retain its original expectation, and a separate mixed-input test exercises the new default. In `tests/test_cli.py` and `tests/test_consolidator.py` the empty-folder assertion now expects the message that names every enabled extension (`no .xlsx, .xls, .csv files in …`), because the previous text named one format while the default run looks for three.
+
+Sprint 6 verification with `.venv/bin/python -m pytest tests -q` produced 257 passes and 4 window tests skipped on the headless VPS. The existing window smoke test gained checks for the new selector. The synthetic SSH demonstration ran both CLI summary modes with three mixed inputs and seven output rows. It compared both CSVs with the workbook and verified the input SHA-256 hashes after each run.
 
 Sample data in the repository: `data/input/branch_01.xlsx`, `branch_02.xlsx` and `branch_03.xlsx`, 7 rows in total, with `branch_02` using a different column order. Output goes to `data/output/consolidated.xlsx` and `data/output/consolidation.log`, both git-ignored.
 
@@ -36,19 +39,19 @@ src/excel_consolidator/
   csv_reader.py    decoding, delimiter selection and raw text records
   xls_reader.py    first BIFF worksheet, mapped cell types and cell errors
   quality.py       trim / pt-BR numbers / ISO dates, per-column and per-rule counters, duplicates
-  report.py        long-format report sheet (section, file, column, metric, value)
+  report.py        long-format quality report (section, file, column, metric, value)
   consolidator.py  concatenation, key validation, optional dedup, result plus report
-  writer.py        two-sheet write with a temporary file in the destination plus os.replace
+  writer.py        workbook and CSV staging, atomic file replacement, rollback
   config.py        optional config.toml, key and type validation, precedence CLI over file over default
   runlog.py        RotatingFileHandler (about 1 MB, 1 backup), no console handler
-  cli.py           argparse, config merge, logs, four stdout lines, exit codes, run_config
+  cli.py           argparse, config merge, logs, text or JSON summary, exit codes, run_config
   __main__.py      python -m excel_consolidator
   ui/controller.py fields to RuntimeConfig to run_config to RunOutcome (no tkinter)
   ui/app.py        customtkinter widgets, thread plus queue, 3 tabs
   ui/__main__.py   python -m excel_consolidator.ui
 ```
 
-CLI contract, stdout on success:
+The default CLI success summary has four lines on stdout.
 
 ```text
 files: <n>
@@ -57,7 +60,7 @@ output: <absolute path>
 quality: nulls=<X> duplicates=<Y> removed=<Z> changed=<W>
 ```
 
-A consolidation or configuration error prints `error: <message>` on stderr with exit 1, no traceback, and leaves the previous output byte for byte intact. An invalid argument exits 2 through argparse.
+`--json` prints one object on stdout with `files`, `rows`, the absolute primary `output`, absolute paths in `outputs`, the four `quality` counters and a `warnings` array. `outputs` contains the key `xlsx` for a workbook, and the keys `csv` and `report` when the run writes CSV. Both summary modes produce the same log entries. On success, exit status is 0. On a consolidation or configuration error, stdout is empty and stderr gets `error: <message>` with exit 1. An invalid argument exits 2 through argparse.
 
 ## Decisions and reasons
 
@@ -66,14 +69,17 @@ A consolidation or configuration error prints `error: <message>` on stderr with 
 - **File discovery** uses a case-insensitive extension and sorts by the original file name. `--formats` takes space-separated names, TOML takes a nonempty list and the GUI takes comma-separated names. An empty input folder reports the enabled extensions, e.g. `no .xlsx, .xls, .csv files in …`, so the message never names a format the run was not looking for.
 - **CSV detection and diagnostics** use the first 50 physical lines containing any content, then parse the sample with each candidate using Python's `csv` module. The consistent candidate with the most fields wins, with comma, semicolon, tab and pipe as the tie order. A single column or a sample with no qualifying delimiter falls back to comma. The full parse preserves quoted line breaks. Each automatic choice is recorded once per CSV in `SheetData.warnings`, aggregated into `ConsolidationResult.warnings` and logged by the CLI and GUI. With no BOM, a successful UTF-8 decode is logged as `utf-8`. Explicit decode errors report a zero-based byte offset.
 - **Header width** uses the explicitly delimited fields of a CSV header. A trailing empty field there is a blank header. Excel readers may supply padding beyond the used headers, which is removed before validation.
-- **GUI input fields** accept a comma-separated formats list and two CSV text entries. Blank formats means all three, blank CSV fields re-enable detection, and `\t` represents a tab delimiter. **From file** uses an input filter for Excel and CSV and fills in the selected file's parent folder. Consolidation still scans that folder. The output chooser is for Excel workbooks.
+- **GUI input fields** accept a comma-separated formats list and two CSV text entries. Blank formats means all three, blank CSV fields re-enable detection, and `\t` represents a tab delimiter. **From file** uses an input filter for Excel and CSV and fills in the selected file's parent folder. Consolidation still scans that folder.
+- **GUI output format** uses a dropdown filled from TOML on open and reload. The selector leaves the path field as entered. The save dialog suggests `.csv` for `csv` and `.xlsx` for `xlsx` or `both`. The summary keeps its existing four-line layout, and the write log lists all published paths.
 - **BIFF** uses xlrd at runtime. Synthetic `.xls` fixtures use xlwt from the dev extra. The reader converts BIFF dates using the workbook epoch and reports Excel error cells with one-based row and column numbers.
 - **Literal header comparison**: no strip, no casefold, no accent removal. `"A"` is not `" A"` and is not `"a"`.
 - **`dtype=object` on concatenation**: avoids `None` to `NaN` and numeric string to number conversion.
 - **No silent transformation**: a value the rule cannot convert stays untouched and is counted as a failure. A failure is counted only when no conversion rule converted that cell.
 - **Duplicates compare the data columns**: `source_file` is excluded, so an identical row in two different files is a duplicate. Removal keeps the first occurrence.
 - **Long-format report** (`section, file, column, metric, value`): parseable and stable. Computed **before** duplicate removal.
-- **Atomic output** uses a temporary file in the same directory and `os.replace`. A failure keeps the previous result and removes the temporary. Existing files selected as inputs are rejected as workbook or log destinations. The log also rejects an existing output workbook as its destination.
+- **Export destinations** use the same path rules for writing, logging and the JSON summary. `xlsx` writes the workbook to the chosen path. `csv` uses the chosen path verbatim for data and adds `<stem>_report.csv`. `both` requires the literal `.xlsx` ending and adds `<stem>.csv` and `<stem>_report.csv` next to that workbook. Checks cover all selected inputs, export paths and the rotating log paths.
+- **CSV output** uses UTF-8 with BOM, comma, minimal quoting and LF record separators. Quoting preserves CR and LF embedded in a field. Data includes `source_file`. `None` is empty, and scalar types use `str(value)` as stored in the frame. The workbook stores Excel cell types on two sheets. For example, a date-only value exports as `2026-11-18` in CSV, and an Excel reader can return it as a midnight `datetime` from the workbook. The two report representations use the same column and row order.
+- **File publication** stages every export in the destination directory. A write failure removes the temporary files and preserves the previous exports byte for byte. For a multi-file publish, the writer backs up existing destinations and rolls back completed replacements if a later `os.replace` fails. A rollback error reports the path of any retained backups. Replacements happen in sequence, so a reader can observe an intermediate set and an abrupt termination can interrupt publication. Runs with overlapping destinations need to be sequenced by the caller.
 - **TOML paths relative to the file itself**: running from another directory does not change the target. Defaults and CLI paths stay relative to the CWD.
 - **No scheduling** (PO decision): recurring execution is done from the GUI, one run per click.
 - **`run_config(RuntimeConfig)`**: the core entry point for the GUI, importable and silent (no print, no log setup, no `sys.exit`).
@@ -112,6 +118,23 @@ Restrict a run to CSV and provide an explicit separator and encoding for a known
 .venv/bin/python -m excel_consolidator --input /path/to/exports --formats csv \
   --csv-encoding cp1252 --csv-delimiter ';' --normalize-numbers
 ```
+
+From an SSH shell on the VPS, export both formats and consume the JSON summary on stdout. This creates `/srv/exports/run.xlsx`, `/srv/exports/run.csv` and `/srv/exports/run_report.csv`.
+
+```bash
+.venv/bin/python -m excel_consolidator --input /srv/imports \
+  --output /srv/exports/run.xlsx --output-format both \
+  --log-file /srv/exports/run.log --json
+```
+
+For CSV only over SSH, use the desired primary filename. This example uses the default text summary.
+
+```bash
+.venv/bin/python -m excel_consolidator --input /srv/imports \
+  --output /srv/exports/run.csv --output-format csv --log-file /srv/exports/run.log
+```
+
+The top-level TOML key `output_format = "both"` sets the same mode for later runs. An explicit `--output-format` overrides it. Without a setting, the default is `xlsx`.
 
 Independent checks that build their own synthetic inputs:
 
@@ -160,10 +183,10 @@ The product owner decided on 2026-11-18 that real use happens on this VPS over S
 - A fully empty trailing row is dropped by the reader (Sprint 1 rule); an empty row in the middle is preserved.
 - `write_atomic(frame, output)` without a report writes one sheet; with a report it writes two (`consolidated`, `report`).
 - Log rotation keeps only `consolidation.log.1`.
-- Sprint 5 verification ran without a display. With a display available, `tests/test_ui_app.py` builds the window, runs consolidation and reads the widgets.
+- Sprint 6 verification ran without a display. With a display available, `tests/test_ui_app.py` builds the window, runs consolidation and reads the widgets.
 - GUI tests skip without a display (`pytest.importorskip` plus `TclError`). In CI without X or VNC they do not run; the controller tests do.
 
 ## Artifacts
 
-- `docs/briefs/` contains the briefs through `sprint5-i-input-formats.md`.
+- `docs/briefs/` contains the briefs through `sprint6-j-output-formats.md`.
 - `docs/verification/`: independent verification scripts, with paths derived from the script location
