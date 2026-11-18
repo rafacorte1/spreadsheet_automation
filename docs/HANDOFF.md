@@ -90,7 +90,7 @@ A consolidation or configuration error prints `error: <message>` on stderr with 
 
 ## Environment
 
-Sprint 5 was verified on Linux x86_64 with Python 3.14.9, pandas 3.1.1, openpyxl 3.1.5, pytest 9.2.0, customtkinter 6.0.0, xlrd 2.0.2 and xlwt 1.3.0. Product owner environment changed in November 2026: the macOS machine was replaced by a Windows PC, and terminal work happens inside WSL. macOS details below are history, not the current target. Window validation and packaging now target Windows: run the GUI inside WSL (needs WSLg and `python3-tk`) or with a native Windows Python, and package with PyInstaller or a `.bat` launcher instead of a `.app`.
+Sprint 5 was verified on the owner's VPS: Linux x86_64 under KVM, Python 3.14.9, pandas 3.1.1, openpyxl 3.1.5, pytest 9.2.0, customtkinter 6.0.0, xlrd 2.0.2 and xlwt 1.3.0. That VPS is headless (`DISPLAY` empty) and is also where the assistant runs, so the GUI cannot be exercised there: only the controller tests run. Product owner environment changed in November 2026: the macOS machine was replaced by a Windows 11 PC, and terminal work happens inside WSL2 with WSLg. macOS details below are history, not the current target. Window validation needs a desktop session — the owner's WSLg or a native Windows Python. Packaging for a double click targets that PC: either a `.bat`/PowerShell launcher that calls `wsl.exe`, or a PyInstaller build made on Windows (it cannot cross-compile from Linux).
 
 ## How to run
 
